@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Overwatch</string>
+    <string name="panic">Panic</string>
+    <string name="idle">Idle</string>
+    <string name="overwatch">Overwatch</string>
+    <string name="fgs_channel">Overwatch</string>
+    <string name="fgs_covert_channel">Timer</string>
+    <string name="status_channel">Overwatch status</string>
+    <string name="accessibility_service_description">Optional Overwatch Accessibility: keep Overwatch in front, hardware keys outside the app, and turn location on for Send location.</string>
+    <string name="widget_panic_description">Panic using the active Overwatch, or Default if none is running</string>
+    <string name="widget_overwatch_description">Start an Overwatch from the home screen</string>
+</resources>

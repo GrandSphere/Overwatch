@@ -1,0 +1,58 @@
+# Android / Gradle
+*.iml
+.gradle/
+.gradle-home/
+local.properties
+app/local.properties
+.idea/
+.DS_Store
+build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+
+# Signing / secrets
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.pk8
+Keystore
+overwatch.keystore
+signing/
+secrets/
+.env
+.env.*
+
+# Kotlin
+.kotlin/
+
+# JVM crash / heap dumps (OOM profiling)
+*.hprof
+java_pid*.hprof
+hs_err_pid*
+replay_pid*
+*.mdmp
+*.dmp
+*.heapdump
+
+# Logs (JVM crash dumps, build noise, local debug)
+*.log
+*.swp
+*~
+*.bak
+*.tmp
+*.temp
+
+# OS junk
+Thumbs.db
+Desktop.ini
+
