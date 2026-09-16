@@ -1,6 +1,6 @@
 # Overwatch
 
-Overwatch is a check in app. You start it when you want someone to notice if you go quiet. It asks you to show you are okay. If you do not, it can raise the alarm.
+Overwatch is an Android check in app. You start it when you want someone to notice if you go quiet. It asks you to show you are okay. If you do not, it can raise the alarm.
 ## License
 
 Overwatch is licensed under the GNU General Public License v3.0 (GPL-3.0).
