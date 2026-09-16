@@ -6,7 +6,7 @@ Overwatch is an Android check in app. You start it when you want someone to noti
 Overwatch is licensed under the GNU General Public License v3.0 (GPL-3.0).
 
 Copyright © 2026 GrandSphere Studios See the LICENSE file for details.
-## Features
+## Description
 You can configure different Overwatches depending on what you will be doing
 and how you want to check in or alert people.
 
