@@ -12,7 +12,7 @@ import com.grandsphere.overwatch.domain.model.OverwatchConfig
  */
 object FeaturePermissions {
     fun notifyPermission(id: String): String? = when (id) {
-        "notification", "live_notify" -> postNotificationsOrNull()
+        "notification", "live_notify", "bubble" -> postNotificationsOrNull()
         else -> null
     }
 

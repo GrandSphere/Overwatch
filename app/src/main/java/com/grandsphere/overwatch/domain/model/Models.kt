@@ -138,6 +138,8 @@ data class OverwatchConfig(
     val safetyNotificationBody: String = "",
     val notifyNotificationBody: String = "",
     val notifyNotificationUrgency: NotificationUrgency = NotificationUrgency.DEFAULT,
+    /** Floating check-in bubble while this Overwatch is running (requires Notification). */
+    val notifyBubblePopup: Boolean = false,
     val alarmNotificationUrgency: NotificationUrgency = NotificationUrgency.DEFAULT,
     val safetyNotificationUrgency: NotificationUrgency = NotificationUrgency.DEFAULT,
     /** Face-down hold before turnover triggers (default 700 ms). Panic / Dismiss / Cancel each have their own. */

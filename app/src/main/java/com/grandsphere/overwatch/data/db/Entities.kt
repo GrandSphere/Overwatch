@@ -79,6 +79,7 @@ data class OverwatchConfigEntity(
     val safetyNotificationBody: String = "",
     val notifyNotificationBody: String = "",
     val notifyNotificationUrgency: String = NotificationUrgency.DEFAULT.name,
+    val notifyBubblePopup: Boolean = false,
     val alarmNotificationUrgency: String = NotificationUrgency.DEFAULT.name,
     val safetyNotificationUrgency: String = NotificationUrgency.DEFAULT.name,
     val turnoverHoldMs: Long = 700L,
@@ -116,7 +117,7 @@ data class OverwatchConfigEntity(
                 else -> ids
             }
         }
-        val notifyIds = NotifyCatalog.sanitizeIds(rawNotify)
+        val notifyIds = NotifyCatalog.withLegacyBubble(rawNotify, notifyBubblePopup)
         return OverwatchConfig(
             id = id,
             name = name,
@@ -183,6 +184,7 @@ data class OverwatchConfigEntity(
             safetyNotificationBody = safetyNotificationBody,
             notifyNotificationBody = notifyNotificationBody,
             notifyNotificationUrgency = parseUrgency(notifyNotificationUrgency),
+            notifyBubblePopup = "bubble" in notifyIds,
             alarmNotificationUrgency = parseUrgency(alarmNotificationUrgency),
             safetyNotificationUrgency = parseUrgency(safetyNotificationUrgency),
             turnoverHoldMs = turnoverHoldMs.coerceAtLeast(100L),
@@ -274,6 +276,7 @@ data class OverwatchConfigEntity(
                 safetyNotificationBody = config.safetyNotificationBody,
                 notifyNotificationBody = config.notifyNotificationBody,
                 notifyNotificationUrgency = config.notifyNotificationUrgency.name,
+                notifyBubblePopup = "bubble" in notifyIds,
                 alarmNotificationUrgency = config.alarmNotificationUrgency.name,
                 safetyNotificationUrgency = config.safetyNotificationUrgency.name,
                 turnoverHoldMs = config.turnoverHoldMs.coerceAtLeast(100L),

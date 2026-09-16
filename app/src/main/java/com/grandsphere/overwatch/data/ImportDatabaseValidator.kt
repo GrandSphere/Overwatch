@@ -172,6 +172,7 @@ object ImportDatabaseValidator {
             "`notifyNotificationUrgency` TEXT NOT NULL DEFAULT 'DEFAULT'",
             "'DEFAULT'",
         ),
+        Col("notifyBubblePopup", "`notifyBubblePopup` INTEGER NOT NULL DEFAULT 0", "0"),
         Col(
             "alarmNotificationUrgency",
             "`alarmNotificationUrgency` TEXT NOT NULL DEFAULT 'DEFAULT'",
@@ -267,7 +268,7 @@ object ImportDatabaseValidator {
         if (alarmIds.isEmpty()) alarmIds = listOf("log")
 
         val rawNotify = csv(raw.notifyEffectIds)
-        var notifyIds = NotifyCatalog.sanitizeIds(rawNotify)
+        var notifyIds = NotifyCatalog.withLegacyBubble(rawNotify, raw.notifyBubblePopup)
         notifyIds = dropUnknown(notifyIds) { NotifyCatalog.byId(it) != null }
         notifyIds = notifyIds - NotifyCatalog.conflicts(notifyIds, covert)
         if (notifyIds.isEmpty()) notifyIds = listOf("none")
@@ -401,6 +402,7 @@ object ImportDatabaseValidator {
             safetyNotificationBody = raw.safetyNotificationBody,
             notifyNotificationBody = raw.notifyNotificationBody,
             notifyNotificationUrgency = enumOr(raw.notifyNotificationUrgency, NotificationUrgency.DEFAULT).name,
+            notifyBubblePopup = "bubble" in notifyIds,
             alarmNotificationUrgency = enumOr(raw.alarmNotificationUrgency, NotificationUrgency.DEFAULT).name,
             safetyNotificationUrgency = enumOr(raw.safetyNotificationUrgency, NotificationUrgency.DEFAULT).name,
             turnoverHoldMs = raw.turnoverHoldMs.coerceAtLeast(100L),
@@ -582,6 +584,7 @@ object ImportDatabaseValidator {
                         "notifyNotificationUrgency",
                         NotificationUrgency.DEFAULT.name,
                     ),
+                    notifyBubblePopup = c.bool01("notifyBubblePopup"),
                     alarmNotificationUrgency = c.optionalString(
                         "alarmNotificationUrgency",
                         NotificationUrgency.DEFAULT.name,
@@ -684,6 +687,7 @@ object ImportDatabaseValidator {
         put("safetyNotificationBody", safetyNotificationBody)
         put("notifyNotificationBody", notifyNotificationBody)
         put("notifyNotificationUrgency", notifyNotificationUrgency)
+        put("notifyBubblePopup", if (notifyBubblePopup) 1 else 0)
         put("alarmNotificationUrgency", alarmNotificationUrgency)
         put("safetyNotificationUrgency", safetyNotificationUrgency)
         put("turnoverHoldMs", turnoverHoldMs)

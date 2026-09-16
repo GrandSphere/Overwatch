@@ -14,6 +14,7 @@ object AppShutdown {
         ClockAlarm.dismiss(context)
         app.dispatcher.halt()
         OverwatchService.stop(context)
+        CheckInBubbles.cancel(context)
         VerboseLog.d("Shutdown", "hardStop finishAffinity=$finishAffinity")
         app.engine.forceWadingHardQuit()
         if (!finishAffinity) return

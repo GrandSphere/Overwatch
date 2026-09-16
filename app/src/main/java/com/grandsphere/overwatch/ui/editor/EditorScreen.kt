@@ -450,6 +450,7 @@ fun EditorScreen(
                         onChange(
                             current.copy(
                                 notifyEffectIds = next,
+                                notifyBubblePopup = "bubble" in next,
                                 notifyVibrateDurationMs = when {
                                     id != "vibrate" || already -> current.notifyVibrateDurationMs
                                     else -> 10_000L
@@ -465,14 +466,19 @@ fun EditorScreen(
                             ),
                         )
                         if (id == "clock_alarm") clockRoundDialog = true
+                        if (id == "bubble") {
+                            com.grandsphere.overwatch.runtime.CheckInBubbles.promptIfNeeded(context)
+                        }
                     }
                 }
             },
             onRemove = { id ->
                 val next = (draft.notifyEffectIds - id).filter { it != "popup" }
+                    .ifEmpty { listOf("none") }
                 onChange(
                     draft.copy(
-                        notifyEffectIds = next.ifEmpty { listOf("none") },
+                        notifyEffectIds = next,
+                        notifyBubblePopup = "bubble" in next,
                         notifySoundUri = if (id == "sound") "" else draft.notifySoundUri,
                         notifySoundDurationMs = if (id == "sound") {
                             OverwatchConfig.SOUND_UNTIL_DISMISSED

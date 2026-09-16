@@ -55,8 +55,10 @@ class OverwatchService : Service() {
                         val nm = getSystemService(android.app.NotificationManager::class.java)
                         nm.notify(OverwatchNotifications.ID, OverwatchNotifications.build(this@OverwatchService, current))
                         LiveCountdownNotifications.sync(this@OverwatchService, current)
+                        CheckInBubbles.sync(this@OverwatchService, current)
                     } else {
                         LiveCountdownNotifications.cancelAll(this@OverwatchService)
+                        CheckInBubbles.cancel(this@OverwatchService)
                         // Stay up until OverwatchService.stop() — Safety Mode may hold FGS after leave.
                     }
                 } catch (t: Throwable) {
@@ -108,6 +110,7 @@ class OverwatchService : Service() {
         ticker?.cancel()
         job.cancel()
         LiveCountdownNotifications.cancelAll(this)
+        CheckInBubbles.cancel(this)
         extraCamera = false
         extraMic = false
         extraLocation = false

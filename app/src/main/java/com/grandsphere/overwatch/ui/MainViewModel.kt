@@ -77,8 +77,10 @@ class MainViewModel(
 
     fun saveDraft() {
         val current = _draft.value ?: return
+        val notifyIds = current.notifyEffectIds.filter { it != "popup" }
         val cleaned = current.copy(
-            notifyEffectIds = current.notifyEffectIds.filter { it != "popup" },
+            notifyEffectIds = notifyIds,
+            notifyBubblePopup = "bubble" in notifyIds,
             graceNotifyEffectIds = current.graceNotifyEffectIds.filter { it != "popup" },
             safetyEffectIds = current.safetyEffectIds.filter {
                 com.grandsphere.overwatch.domain.catalog.AlarmCatalog.isAllowedInSafety(it)

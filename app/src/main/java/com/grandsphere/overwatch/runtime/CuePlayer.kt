@@ -62,7 +62,7 @@ class CuePlayer(private val context: Context) {
                     )
                 }
                 "notification" -> postCheckIn(config, covert)
-                "popup", "none", "live_notify" -> VerboseLog.ok("Cue", id)
+                "popup", "none", "live_notify", "bubble" -> VerboseLog.ok("Cue", id)
             }
         }
     }

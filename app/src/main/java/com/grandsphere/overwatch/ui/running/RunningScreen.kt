@@ -75,8 +75,14 @@ fun RunningScreen(
         var stopped = false
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_STOP -> stopped = true
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    FingerprintAuth.cancel()
+                    promptBusy = false
+                    if (event == Lifecycle.Event.ON_STOP) stopped = true
+                }
                 Lifecycle.Event.ON_START -> {
+                    FingerprintAuth.cancel()
+                    promptBusy = false
                     if (stopped) {
                         stopped = false
                         resumeEpoch++
@@ -86,7 +92,10 @@ fun RunningScreen(
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        onDispose {
+            FingerprintAuth.cancel()
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     fun promptFingerprint(
@@ -95,6 +104,7 @@ fun RunningScreen(
         onDismiss: () -> Unit = {},
     ) {
         if (activity == null || promptBusy) return
+        if (!FingerprintAuth.canAuthenticate(activity)) return
         promptBusy = true
         FingerprintAuth.prompt(
             activity,
@@ -142,7 +152,7 @@ fun RunningScreen(
 
         // Immediate prompt on enter / fresh focus; then throttle.
         while (isActive) {
-            if (!promptBusy) {
+            if (!promptBusy && FingerprintAuth.canAuthenticate(context)) {
                 if (wantCancelAuto) {
                     promptFingerprint(
                         title = "Cancel Overwatch",

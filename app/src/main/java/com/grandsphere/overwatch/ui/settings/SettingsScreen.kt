@@ -440,6 +440,15 @@ fun SettingsScreen(
                     context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
                 },
             )
+            if (Build.VERSION.SDK_INT >= 29) {
+                PermissionRow(
+                    label = "Bubbles",
+                    on = com.grandsphere.overwatch.runtime.CheckInBubbles.areAllowed(nm),
+                    onClick = {
+                        com.grandsphere.overwatch.runtime.CheckInBubbles.openSettings(context)
+                    },
+                )
+            }
             if (Build.VERSION.SDK_INT >= 34) {
                 PermissionRow(
                     label = "Full-screen intents",

@@ -23,6 +23,7 @@ interface NotifyEffect {
 object NotifyCatalog {
     val all: List<NotifyEffect> = listOf(
         NoneNotify,
+        BubbleNotify,
         NotificationNotify,
         SoundNotify,
         LiveNotify,
@@ -60,6 +61,15 @@ object NotifyCatalog {
         return next.filter { byId(it) != null }.distinct().ifEmpty { listOf("none") }
     }
 
+    fun withLegacyBubble(ids: List<String>, legacyFlag: Boolean): List<String> {
+        val next = sanitizeIds(ids).toMutableList()
+        if (legacyFlag && "bubble" !in next) {
+            next.remove("none")
+            next += "bubble"
+        }
+        return next.ifEmpty { listOf("none") }
+    }
+
     fun flashlightModeFromLegacy(ids: List<String>, stored: String): String {
         if ("sos_flashlight" in ids) return OverwatchConfig.FLASHLIGHT_SOS
         if ("flicker_flashlight" in ids) return OverwatchConfig.FLASHLIGHT_FLICKER
@@ -71,8 +81,13 @@ object NoneNotify : NotifyEffect {
     override val id = "none"
     override val label = "None"
     override val conflictsWith = setOf(
-        "notification", "sound", "vibrate", "flashlight", "clock_alarm", "live_notify",
+        "bubble", "notification", "sound", "vibrate", "flashlight", "clock_alarm", "live_notify",
     )
+}
+
+object BubbleNotify : NotifyEffect {
+    override val id = "bubble"
+    override val label = "Bubble"
 }
 
 object NotificationNotify : NotifyEffect {

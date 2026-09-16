@@ -21,7 +21,7 @@ and how you want to check in or alert people.
     
 Please try every feature you plan to use before you rely on it.
 
-## Known Issues
+## Potential Issues
 Location:
 * Android can close or block this app in the background without warning. 
 Please be careful and do not assume it will always keep running.

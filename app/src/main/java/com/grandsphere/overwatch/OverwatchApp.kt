@@ -15,6 +15,7 @@ import com.grandsphere.overwatch.domain.model.OverwatchConfig
 import com.grandsphere.overwatch.runtime.AlarmCapScheduler
 import com.grandsphere.overwatch.runtime.AlarmDispatcher
 import com.grandsphere.overwatch.runtime.AppShutdown
+import com.grandsphere.overwatch.runtime.CheckInBubbles
 import com.grandsphere.overwatch.runtime.ClockAlarm
 import com.grandsphere.overwatch.runtime.CuePlayer
 import com.grandsphere.overwatch.runtime.DeadlineScheduler
@@ -65,6 +66,7 @@ class OverwatchApp : Application() {
             override fun onEnterOverwatch(config: OverwatchConfig) {
                 OverwatchService.start(this@OverwatchApp)
                 engine.nextDeadlineElapsed()?.let { DeadlineScheduler.schedule(this@OverwatchApp, it) }
+                CheckInBubbles.sync(this@OverwatchApp, engine.state.value)
                 val running = engine.state.value as? AppState.Overwatch
                 if (running != null && running.submode != com.grandsphere.overwatch.domain.model.Submode.AlarmMode) {
                     if ("location" in config.alarmEffectIds) {

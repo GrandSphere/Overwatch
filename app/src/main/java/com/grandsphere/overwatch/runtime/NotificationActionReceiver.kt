@@ -33,6 +33,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
                         VerboseLog.d("Notify", "ACTION_DISMISS")
                         app.engine.tapDismiss()
                     }
+                    CheckInBubbles.ACTION_TRASHED -> {
+                        VerboseLog.d("Notify", "ACTION_BUBBLE_TRASHED")
+                        CheckInBubbles.onTrashed(app)
+                    }
                     OverwatchNotifications.ACTION_ENABLE -> {
                         val id = intent.getLongExtra(OverwatchNotifications.EXTRA_CONFIG_ID, -1L)
                         VerboseLog.d("Notify", "ACTION_ENABLE id=$id")
