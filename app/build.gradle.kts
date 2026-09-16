@@ -21,8 +21,8 @@ android {
         applicationId = "com.grandsphere.overwatch"
         minSdk = 26
         targetSdk = 35
-        versionCode = 29
-        versionName = "0.129"
+        versionCode = 30
+        versionName = "0.130"
     }
 
     signingConfigs {

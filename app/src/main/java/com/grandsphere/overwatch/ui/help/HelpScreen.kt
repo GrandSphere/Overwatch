@@ -65,6 +65,84 @@ fun HelpScreen() {
             color = body,
         )
         CollapsibleSection(
+            title = "Features",
+            hint = "What each option does",
+        ) {
+            Text("You can use more than one option together.", fontSize = 16.sp, color = muted)
+            Text("Schedule:", fontSize = 16.sp, color = body)
+            HelpBullet("Single: check in once within a time you set.", muted)
+            HelpBullet("Repeat: check in every so often. You can stop after a number of times, or after an interval.", muted)
+            HelpBullet("By Time: check in before a clock time you set.", muted)
+            HelpBullet("Grace period: how long you can take to check in after it is due.", muted)
+            HelpBullet("Covert mode: hide app actions.", muted)
+            Spacer(Modifier.height(4.dp))
+            Text("Notify:", fontSize = 16.sp, color = body)
+            HelpBullet("None: the app does not remind you to check in.", muted)
+            HelpBullet("Bubble: a small pop-up over other apps. Tap it to check in. It stays until you close it.", muted)
+            HelpBullet("Notification: a notification when it is time to check in. You can set the text.", muted)
+            HelpBullet("Sound: plays a sound you pick, for a time you set.", muted)
+            HelpBullet("Live notify: a countdown of time left on the running notification. You can show the Overwatch name.", muted)
+            HelpBullet("Set Alarm: sets an alarm in the Clock app for when the check in is due. Alarms are set on the closest minute.", muted)
+            HelpBullet("Vibrate: the phone vibrates for a time you set.", muted)
+            HelpBullet("Flashlight: turns the torch on. You can set how long, and whether it stays on, flickers, or uses SOS.", muted)
+            Spacer(Modifier.height(4.dp))
+            Text("Dismiss:", fontSize = 16.sp, color = body)
+            HelpBullet("Tap: tap to show you are okay.", muted)
+            HelpBullet("PIN: enter your PIN to show you are okay. In Settings you can set a Fake PIN digit. If an entered PIN starts or ends with that digit, it raises the alarm.", muted)
+            HelpBullet("Fingerprint: use your fingerprint. Auto fingerprint asks on its own. Without auto, you tap first.", muted)
+            HelpBullet("Volume down (in-app): press volume down while Overwatch is open.", muted)
+            HelpBullet("Power Button: press the power button.", muted)
+            HelpBullet("Turnover: flip the phone.", muted)
+            HelpBullet("Shake: shake the phone.", muted)
+            Spacer(Modifier.height(4.dp))
+            Text("Alarm:", fontSize = 16.sp, color = body)
+            HelpBullet("Log: writes what happened to the log in the app.", muted)
+            HelpBullet("SMS: sends an SMS to numbers you set.", muted)
+            HelpBullet("Call: calls numbers you set. Quiet call is best effort.", muted)
+            HelpBullet("Sound: plays a sound. You can let it keep playing until it is dismissed.", muted)
+            HelpBullet("Vibrate: the phone vibrates.", muted)
+            HelpBullet("Set Alarm: sets an alarm in the Clock app. Alarms are set on the closest minute.", muted)
+            HelpBullet("Location: can send recent locations, and can keep sending your current location. Location requires SMS or Log.", muted)
+            HelpBullet("Flashlight: turns the torch on. You can set how long, and whether it stays on, flickers, or uses SOS.", muted)
+            HelpBullet("Record video: keeps recording. Split into clips.", muted)
+            HelpBullet("Record audio: keeps recording. Split into clips.", muted)
+            HelpBullet("Notification: a notification that you need help. You can set the text.", muted)
+            HelpBullet("Quit: closes the app after the other alarm actions have started.", muted)
+            Spacer(Modifier.height(4.dp))
+            Text("Panic:", fontSize = 16.sp, color = body)
+            HelpBullet("None: you do not add extra ways to trigger the alarm.", muted)
+            HelpBullet("Power Button: press the power button to raise the alarm.", muted)
+            HelpBullet("Turnover: flip the phone to raise the alarm.", muted)
+            HelpBullet("Shake: shake the phone to raise the alarm.", muted)
+            HelpBullet("Crash Detect: raises the alarm if the phone takes a hard jolt and then stays still.", muted)
+            Spacer(Modifier.height(4.dp))
+            Text("Safety:", fontSize = 16.sp, color = body)
+            Text(
+                "These run when you are safe again. They work like the Alarm options of the same name.",
+                fontSize = 16.sp,
+                color = muted,
+            )
+            HelpBullet("None, Log, SMS, Call, Sound, Vibrate, Location, Flashlight, Notification, and Quit.", muted)
+            Spacer(Modifier.height(4.dp))
+            Text("Cancel:", fontSize = 16.sp, color = body)
+            HelpBullet("PIN, Fingerprint, Volume down (in-app), Power Button, Turnover, and Shake: same idea as Dismiss, used to stop an Overwatch on purpose.", muted)
+            HelpBullet("Same as dismiss: use whatever you set for Dismiss.", muted)
+            Spacer(Modifier.height(4.dp))
+            Text("Covert mode:", fontSize = 16.sp, color = body)
+            Text(
+                "Hides app actions so the Overwatch is less obvious. Notifications use bland wording. Sound, vibration, flashlight, and Clock alarms are skipped.",
+                fontSize = 16.sp,
+                color = muted,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text("Fail secretly:", fontSize = 16.sp, color = body)
+            Text(
+                "This is in Settings. A wrong PIN looks as if it worked, but it secretly raises the alarm.",
+                fontSize = 16.sp,
+                color = muted,
+            )
+        }
+        CollapsibleSection(
             title = "Troubleshooting",
             hint = "Background, location, and SMS/call permission issues",
         ) {

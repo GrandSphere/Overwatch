@@ -17,7 +17,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +34,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -73,6 +71,14 @@ import com.grandsphere.overwatch.domain.model.RecordCameraMode
 import com.grandsphere.overwatch.domain.security.PinHasher
 import com.grandsphere.overwatch.runtime.LocationFeatures
 import com.grandsphere.overwatch.ui.chrome.CollapsibleSection
+import com.grandsphere.overwatch.ui.chrome.HintCopy
+import com.grandsphere.overwatch.ui.chrome.HintFilterChip
+import com.grandsphere.overwatch.ui.chrome.HintText
+import com.grandsphere.overwatch.ui.chrome.HoldHintDialog
+import com.grandsphere.overwatch.ui.chrome.hintFieldLabel
+import com.grandsphere.overwatch.ui.chrome.hintSemantics
+import com.grandsphere.overwatch.ui.chrome.holdHintOrClick
+import com.grandsphere.overwatch.ui.chrome.watchHoldHint
 import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -114,6 +120,8 @@ fun SettingsScreen(
     var clearConfirm by remember { mutableStateOf(false) }
     var fakePinHint by remember { mutableStateOf(false) }
     var failSecretHint by remember { mutableStateOf(false) }
+    var holdHint by remember { mutableStateOf<String?>(null) }
+    val showHoldHint: (String) -> Unit = { if (it.isNotEmpty()) holdHint = it }
     var permTick by remember { mutableStateOf(0) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
@@ -140,28 +148,42 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         CollapsibleSection("Panic", hint = "How Panic is triggered in the app") {
-            Text("Panic activation", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
+            HintText(
+                text = "Panic activation",
+                hint = HintCopy.PANIC_ACTIVATION,
+                onHint = showHoldHint,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            )
             Row {
                 PanicActivation.entries.forEach { act ->
-                    FilterChip(
+                    HintFilterChip(
                         selected = draft.panicActivation == act,
+                        label = act.name.lowercase().replace('_', ' '),
+                        hint = HintCopy.panicActivation(act),
+                        onHint = showHoldHint,
                         onClick = { draft = draft.copy(panicActivation = act) },
-                        label = { Text(act.name.lowercase().replace('_', ' ')) },
                         modifier = Modifier.padding(end = 8.dp),
                     )
                 }
             }
-            Text("Panic hardware key (in-app)", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
+            HintText(
+                text = "Panic hardware key (in-app)",
+                hint = HintCopy.PANIC_HARDWARE,
+                onHint = showHoldHint,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            )
             Row {
                 listOf(
                     HardwareKeyOption.NONE to "Off",
                     HardwareKeyOption.VOLUME_UP_DOUBLE to "Vol up x2",
                     HardwareKeyOption.VOLUME_UP to "Vol up",
                 ).forEach { (opt, label) ->
-                    FilterChip(
+                    HintFilterChip(
                         selected = draft.panicHardwareKey == opt,
+                        label = label,
+                        hint = HintCopy.hardwareKey(opt),
+                        onHint = showHoldHint,
                         onClick = { draft = draft.copy(panicHardwareKey = opt) },
-                        label = { Text(label) },
                         modifier = Modifier.padding(end = 8.dp),
                     )
                 }
@@ -179,11 +201,13 @@ fun SettingsScreen(
                         pinText = incoming.filter { c -> c.isDigit() }.take(8)
                     }
                 },
-                label = { Text("PIN") },
+                label = hintFieldLabel("PIN", HintCopy.SETTINGS_PIN, showHoldHint),
                 placeholder = { Text("Leave blank to keep") },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { showHoldHint(HintCopy.SETTINGS_PIN) },
             )
             OutlinedTextField(
                 value = draft.duressDigit,
@@ -216,21 +240,26 @@ fun SettingsScreen(
                     },
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
+                HintFilterChip(
                     selected = !draft.duressPrefix,
+                    label = "Ends with",
+                    hint = HintCopy.ENDS_STARTS,
+                    onHint = showHoldHint,
                     onClick = { draft = draft.copy(duressPrefix = false) },
-                    label = { Text("Ends with") },
                 )
-                FilterChip(
+                HintFilterChip(
                     selected = draft.duressPrefix,
+                    label = "Starts with",
+                    hint = HintCopy.ENDS_STARTS,
+                    onHint = showHoldHint,
                     onClick = { draft = draft.copy(duressPrefix = true) },
-                    label = { Text("Starts with") },
                 )
             }
             SettingsSwitchRow(
                 label = "Panic after 2 wrong PINs",
                 checked = draft.panicOnTwoWrongPins,
                 onChecked = { draft = draft.copy(panicOnTwoWrongPins = it) },
+                onLongClick = { showHoldHint(HintCopy.PANIC_TWO_WRONG) },
             )
             SettingsSwitchRow(
                 label = "Fail secretly",
@@ -242,9 +271,11 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = draft.failSecretPhrase,
                     onValueChange = { draft = draft.copy(failSecretPhrase = it.take(40)) },
-                    label = { Text("Secret cancel phrase") },
+                    label = hintFieldLabel("Secret cancel phrase", HintCopy.SECRET_PHRASE, showHoldHint),
                     placeholder = { Text("Okay") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hintSemantics { showHoldHint(HintCopy.SECRET_PHRASE) },
                 )
             }
         }
@@ -253,23 +284,32 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = maxDurText,
                 onValueChange = { maxDurText = it.filter { c -> c.isDigit() }.take(4) },
-                label = { Text("Max duration (minutes)") },
+                label = hintFieldLabel("Max duration (minutes)", HintCopy.MAX_DURATION, showHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { showHoldHint(HintCopy.MAX_DURATION) },
             )
             OutlinedTextField(
                 value = maxSmsText,
                 onValueChange = { maxSmsText = it.filter { c -> c.isDigit() }.take(4) },
-                label = { Text("Max SMS") },
+                label = hintFieldLabel("Max SMS", HintCopy.MAX_SMS, showHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { showHoldHint(HintCopy.MAX_SMS) },
             )
             OutlinedTextField(
                 value = maxCallsText,
                 onValueChange = { maxCallsText = it.filter { c -> c.isDigit() }.take(4) },
-                label = { Text("Max Calls") },
+                label = hintFieldLabel("Max Calls", HintCopy.MAX_CALLS, showHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { showHoldHint(HintCopy.MAX_CALLS) },
             )
         }
 
@@ -277,32 +317,44 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = clipSecondsText,
                 onValueChange = { clipSecondsText = it.filter { c -> c.isDigit() }.take(3) },
-                label = { Text("Video clip seconds") },
+                label = hintFieldLabel("Video clip seconds", HintCopy.CLIP_LENGTH, showHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { showHoldHint(HintCopy.CLIP_LENGTH) },
             )
             OutlinedTextField(
                 value = audioClipText,
                 onValueChange = { audioClipText = it.filter { c -> c.isDigit() }.take(3) },
-                label = { Text("Audio clip seconds") },
+                label = hintFieldLabel("Audio clip seconds", HintCopy.CLIP_LENGTH, showHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { showHoldHint(HintCopy.CLIP_LENGTH) },
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
+                HintFilterChip(
                     selected = draft.recordCameraMode == RecordCameraMode.BACK,
+                    label = "Back camera",
+                    hint = HintCopy.CAMERA_BACK,
+                    onHint = showHoldHint,
                     onClick = { draft = draft.copy(recordCameraMode = RecordCameraMode.BACK) },
-                    label = { Text("Back camera") },
                 )
-                FilterChip(
+                HintFilterChip(
                     selected = draft.recordCameraMode == RecordCameraMode.FRONT,
+                    label = "Front camera",
+                    hint = HintCopy.CAMERA_FRONT,
+                    onHint = showHoldHint,
                     onClick = { draft = draft.copy(recordCameraMode = RecordCameraMode.FRONT) },
-                    label = { Text("Front camera") },
                 )
-                FilterChip(
+                HintFilterChip(
                     selected = draft.recordCameraMode == RecordCameraMode.BOTH,
+                    label = "Both",
+                    hint = HintCopy.CAMERA_BOTH,
+                    onHint = showHoldHint,
                     onClick = { draft = draft.copy(recordCameraMode = RecordCameraMode.BOTH) },
-                    label = { Text("Both") },
                 )
             }
         }
@@ -311,23 +363,32 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = recentLocText,
                 onValueChange = { recentLocText = it.filter { c -> c.isDigit() }.take(3) },
-                label = { Text("Recent sample every (minutes)") },
+                label = hintFieldLabel("Recent sample every (minutes)", HintCopy.RECENT_SAMPLE, showHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { showHoldHint(HintCopy.RECENT_SAMPLE) },
             )
             OutlinedTextField(
                 value = recentPointsText,
                 onValueChange = { recentPointsText = it.filter { c -> c.isDigit() }.take(2) },
-                label = { Text("Recent points in SMS") },
+                label = hintFieldLabel("Recent points in SMS", HintCopy.RECENT_POINTS, showHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { showHoldHint(HintCopy.RECENT_POINTS) },
             )
             OutlinedTextField(
                 value = contLocText,
                 onValueChange = { contLocText = it.filter { c -> c.isDigit() }.take(3) },
-                label = { Text("Continuous SMS every (minutes)") },
+                label = hintFieldLabel("Continuous SMS every (minutes)", HintCopy.CONTINUOUS_SMS, showHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { showHoldHint(HintCopy.CONTINUOUS_SMS) },
             )
         }
 
@@ -344,6 +405,7 @@ fun SettingsScreen(
                         actionArgb = action,
                     )
                 },
+                onLongClick = { showHoldHint(HintCopy.LIGHT_THEME) },
             )
             ColourSettingRow(
                 label = "Group colour",
@@ -369,13 +431,25 @@ fun SettingsScreen(
                     draft = draft.copy(actionArgb = AppearanceDefaults.action(draft.lightTheme))
                 },
             )
-            Text("Font size", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
+            HintText(
+                text = "Font size",
+                hint = HintCopy.FONT_SIZE,
+                onHint = showHoldHint,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(0.85f to "Smaller", 1f to "Default", 1.15f to "Larger").forEach { (scale, label) ->
-                    FilterChip(
+                listOf(
+                    0.85f to ("Smaller" to HintCopy.FONT_SMALLER),
+                    1f to ("Default" to HintCopy.FONT_DEFAULT),
+                    1.15f to ("Larger" to HintCopy.FONT_LARGER),
+                ).forEach { (scale, pair) ->
+                    val (label, hint) = pair
+                    HintFilterChip(
                         selected = kotlin.math.abs(draft.fontScale - scale) < 0.01f,
+                        label = label,
+                        hint = hint,
+                        onHint = showHoldHint,
                         onClick = { draft = draft.copy(fontScale = scale) },
-                        label = { Text(label) },
                     )
                 }
             }
@@ -383,6 +457,7 @@ fun SettingsScreen(
                 label = "Notify toasts",
                 checked = draft.notifyToasts,
                 onChecked = { draft = draft.copy(notifyToasts = it) },
+                onLongClick = { showHoldHint(HintCopy.NOTIFY_TOASTS) },
             )
         }
 
@@ -410,6 +485,7 @@ fun SettingsScreen(
                             openAppDetails(context)
                         }
                     },
+                    onHint = { showHoldHint(HintCopy.permissionHint(row.label)) },
                 )
             }
             PermissionRow(
@@ -420,6 +496,7 @@ fun SettingsScreen(
                         .setData(Uri.parse("package:${context.packageName}"))
                     runCatching { context.startActivity(intent) }
                 },
+                onHint = { showHoldHint(HintCopy.PERM_BATTERY) },
             )
             if (Build.VERSION.SDK_INT >= 31) {
                 PermissionRow(
@@ -431,6 +508,7 @@ fun SettingsScreen(
                                 .setData(Uri.parse("package:${context.packageName}")),
                         )
                     },
+                    onHint = { showHoldHint(HintCopy.PERM_EXACT) },
                 )
             }
             PermissionRow(
@@ -439,6 +517,7 @@ fun SettingsScreen(
                 onClick = {
                     context.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
                 },
+                onHint = { showHoldHint(HintCopy.PERM_DND) },
             )
             if (Build.VERSION.SDK_INT >= 29) {
                 PermissionRow(
@@ -447,6 +526,7 @@ fun SettingsScreen(
                     onClick = {
                         com.grandsphere.overwatch.runtime.CheckInBubbles.openSettings(context)
                     },
+                    onHint = { showHoldHint(HintCopy.PERM_BUBBLES) },
                 )
             }
             if (Build.VERSION.SDK_INT >= 34) {
@@ -459,9 +539,8 @@ fun SettingsScreen(
                                 .setData(Uri.parse("package:${context.packageName}")),
                         )
                     },
+                    onHint = { showHoldHint(HintCopy.PERM_FSI) },
                 )
-            }
-            if (Build.VERSION.SDK_INT >= 36) {
                 PermissionRow(
                     label = "Live Updates",
                     on = nm.canPostPromotedNotifications(),
@@ -473,6 +552,7 @@ fun SettingsScreen(
                             )
                         }.onFailure { openAppDetails(context) }
                     },
+                    onHint = { showHoldHint(HintCopy.PERM_LIVE) },
                 )
             }
             if (LocationFeatures.OFFER_BACKGROUND_LOCATION && Build.VERSION.SDK_INT >= 29) {
@@ -501,22 +581,28 @@ fun SettingsScreen(
                             requestPerm.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                         }
                     },
+                    onHint = { showHoldHint(HintCopy.PERM_BG_LOCATION) },
                 )
             }
         }
 
         CollapsibleSection("Export", hint = "Copy Overwatches and settings between devices") {
-            TextButton(onClick = onExport) { Text("Export Overwatches") }
-            TextButton(onClick = onShare) { Text("Share export Overwatches") }
-            TextButton(onClick = onImport) { Text("Import Overwatches") }
-            TextButton(onClick = { clearConfirm = true }) { Text("Clear Overwatches") }
-            TextButton(onClick = onExportSettings) { Text("Export settings") }
-            TextButton(onClick = onShareSettings) { Text("Share export settings") }
-            TextButton(onClick = onImportSettings) { Text("Import settings") }
-            TextButton(onClick = onExportLog) { Text("Export log") }
-            TextButton(onClick = onShareLog) { Text("Share log") }
-            TextButton(onClick = onExportVerboseLog) { Text("Export verbose log") }
-            TextButton(onClick = onShareVerboseLog) { Text("Share export verbose log") }
+            HintActionButton("Export Overwatches", HintCopy.EXPORT_OW, showHoldHint, onExport)
+            HintActionButton("Share export Overwatches", HintCopy.SHARE_OW, showHoldHint, onShare)
+            HintActionButton("Import Overwatches", HintCopy.IMPORT_OW, showHoldHint, onImport)
+            HintActionButton("Clear Overwatches", HintCopy.CLEAR_OW, showHoldHint) { clearConfirm = true }
+            HintActionButton("Export settings", HintCopy.EXPORT_SETTINGS, showHoldHint, onExportSettings)
+            HintActionButton("Share export settings", HintCopy.SHARE_SETTINGS, showHoldHint, onShareSettings)
+            HintActionButton("Import settings", HintCopy.IMPORT_SETTINGS, showHoldHint, onImportSettings)
+            HintActionButton("Export log", HintCopy.EXPORT_LOG, showHoldHint, onExportLog)
+            HintActionButton("Share log", HintCopy.SHARE_LOG, showHoldHint, onShareLog)
+            HintActionButton("Export verbose log", HintCopy.EXPORT_VERBOSE, showHoldHint, onExportVerboseLog)
+            HintActionButton(
+                "Share export verbose log",
+                HintCopy.SHARE_VERBOSE,
+                showHoldHint,
+                onShareVerboseLog,
+            )
         }
 
         CollapsibleSection(
@@ -527,11 +613,13 @@ fun SettingsScreen(
                 label = "Verbose logging",
                 checked = draft.verboseLogging,
                 onChecked = { draft = draft.copy(verboseLogging = it) },
+                onLongClick = { showHoldHint(HintCopy.VERBOSE_LOG) },
             )
             SettingsSwitchRow(
                 label = "Always log events",
                 checked = draft.alwaysLogEvents,
                 onChecked = { draft = draft.copy(alwaysLogEvents = it) },
+                onLongClick = { showHoldHint(HintCopy.ALWAYS_LOG) },
             )
         }
 
@@ -639,15 +727,29 @@ fun SettingsScreen(
             },
         )
     }
+    HoldHintDialog(text = holdHint, onDismiss = { holdHint = null })
 }
 
 @Composable
-private fun PermissionRow(label: String, on: Boolean, onClick: () -> Unit) {
+private fun HintActionButton(
+    label: String,
+    hint: String,
+    onHint: (String) -> Unit,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.watchHoldHint { onHint(hint) },
+    ) { Text(label) }
+}
+
+@Composable
+private fun PermissionRow(label: String, on: Boolean, onClick: () -> Unit, onHint: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .holdHintOrClick(onClick = onClick, onHint = onHint)
             .padding(vertical = 8.dp),
     ) {
         Text(label, modifier = Modifier.weight(1f))

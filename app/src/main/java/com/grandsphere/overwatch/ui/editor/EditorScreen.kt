@@ -32,7 +32,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -84,6 +83,14 @@ import com.grandsphere.overwatch.domain.model.NotificationUrgency
 import com.grandsphere.overwatch.domain.model.OverwatchConfig
 import com.grandsphere.overwatch.domain.model.RepeatKind
 import com.grandsphere.overwatch.domain.model.ShakeStrength
+import com.grandsphere.overwatch.ui.chrome.HintCopy
+import com.grandsphere.overwatch.ui.chrome.HintFilterChip
+import com.grandsphere.overwatch.ui.chrome.HintMenuItem
+import com.grandsphere.overwatch.ui.chrome.HintText
+import com.grandsphere.overwatch.ui.chrome.HoldHintDialog
+import com.grandsphere.overwatch.ui.chrome.hintFieldLabel
+import com.grandsphere.overwatch.ui.chrome.hintSemantics
+import com.grandsphere.overwatch.ui.chrome.watchHoldHint
 import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -138,6 +145,8 @@ fun EditorScreen(
     var incompleteDialog by remember { mutableStateOf<String?>(null) }
     var covertHint by remember { mutableStateOf(false) }
     var graceHint by remember { mutableStateOf(false) }
+    var holdHint by remember { mutableStateOf<String?>(null) }
+    val showHoldHint: (String) -> Unit = { if (it.isNotEmpty()) holdHint = it }
     var clockRoundDialog by remember { mutableStateOf(false) }
     var locationRequireDialog by remember { mutableStateOf(false) }
     var showLocationDialog by remember { mutableStateOf(false) }
@@ -434,6 +443,8 @@ fun EditorScreen(
             ids = draft.notifyEffectIds,
             labels = { NotifyCatalog.labelOf(it) },
             options = NotifyCatalog.menuOptions(),
+            optionHint = HintCopy::notify,
+            onHoldHint = showHoldHint,
             conflicts = notifyConflicts,
             onAdd = { id ->
                 if (id == "sound") {
@@ -561,6 +572,8 @@ fun EditorScreen(
             ids = DismissCatalog.chipIds(draft.dismissEffectIds),
             labels = { DismissCatalog.labelOf(it) },
             options = DismissCatalog.menuOptions(),
+            optionHint = HintCopy::dismiss,
+            onHoldHint = showHoldHint,
             conflicts = dismissConflictsAll,
             conflictMessage = when {
                 pinRequiredMissing && DismissCatalog.conflicts(draft.dismissEffectIds).isEmpty() ->
@@ -653,6 +666,8 @@ fun EditorScreen(
                 ids = AlarmCatalog.chipIds(draft.alarmEffectIds),
                 labels = { AlarmCatalog.labelOf(it) },
                 options = AlarmCatalog.menuOptions(AlarmCatalog.all),
+                optionHint = HintCopy::alarm,
+                onHoldHint = showHoldHint,
                 conflicts = alarmConflicts,
                 onAdd = { id ->
                     if (id == "siren") {
@@ -792,6 +807,8 @@ fun EditorScreen(
             ids = draft.panicEffectIds,
             labels = { PanicModeCatalog.labelOf(it) },
             options = PanicModeCatalog.menuOptions(),
+            optionHint = HintCopy::panic,
+            onHoldHint = showHoldHint,
             conflicts = panicConflictsAll,
             onAdd = { id ->
                 val current = draftRef.current
@@ -850,6 +867,8 @@ fun EditorScreen(
                 ids = safetyIds,
                 labels = { AlarmCatalog.labelOf(it) },
                 options = AlarmCatalog.menuOptions(AlarmCatalog.safety),
+                optionHint = HintCopy::alarm,
+                onHoldHint = showHoldHint,
                 conflicts = safetyConflicts,
                 onAdd = { id ->
                     if (!AlarmCatalog.isAllowedInSafety(id)) return@EffectGroup
@@ -994,6 +1013,8 @@ fun EditorScreen(
             ids = CancelCatalog.chipIds(draft.cancelEffectIds),
             labels = { CancelCatalog.labelOf(it) },
             options = CancelCatalog.menuOptions(),
+            optionHint = HintCopy::cancel,
+            onHoldHint = showHoldHint,
             conflicts = cancelConflictsAll,
             conflictMessage = when {
                 pinRequiredMissing && CancelCatalog.conflicts(draft.cancelEffectIds).isEmpty() ->
@@ -1102,6 +1123,7 @@ fun EditorScreen(
             },
         )
     }
+    HoldHintDialog(text = holdHint, onDismiss = { holdHint = null })
     if (fingerprintUnavailable) {
         AlertDialog(
             onDismissRequest = { fingerprintUnavailable = false },
@@ -1139,6 +1161,7 @@ fun EditorScreen(
                 showPinDialog = false
             },
             onDismiss = { showPinDialog = false },
+            onHoldHint = showHoldHint,
         )
     }
     if (clockRoundDialog) {
@@ -1267,6 +1290,7 @@ fun EditorScreen(
             selectedMs = selected,
             untilDismissed = currentUntil,
             allowUntilDismissed = durationKind != "safety",
+            onHoldHint = showHoldHint,
             onSelect = { ms ->
                 if (durationKind == "alarm") {
                     if (ms == OverwatchConfig.SOUND_UNTIL_DISMISSED) {
@@ -1311,6 +1335,7 @@ fun EditorScreen(
             selectedMs = selected,
             untilDismissed = currentUntil,
             allowUntilDismissed = vibrateKind != "safety",
+            onHoldHint = showHoldHint,
             onSelect = { ms ->
                 when (vibrateKind) {
                     "alarm" -> {
@@ -1367,6 +1392,7 @@ fun EditorScreen(
             initialMode = OverwatchConfig.normalizeFlashlightMode(mode),
             flickerOnMs = onMs,
             flickerOffMs = offMs,
+            onHoldHint = showHoldHint,
             onSelect = { ms, nextMode, nextOn, nextOff ->
                 when (flashKind) {
                     "alarm" -> {
@@ -1439,6 +1465,7 @@ fun EditorScreen(
         ShakeSettingsDialog(
             strength = strength,
             count = count,
+            onHoldHint = showHoldHint,
             onSelect = { nextStrength, nextCount ->
                 onChange(
                     when (activeShakeKind) {
@@ -1467,6 +1494,7 @@ fun EditorScreen(
         }
         PowerTapsDialog(
             taps = taps,
+            onHoldHint = showHoldHint,
             onSelect = { next ->
                 val coerced = next.coerceIn(2, 10)
                 onChange(
@@ -1497,6 +1525,7 @@ fun EditorScreen(
                 showCrashDialog = false
             },
             onDismiss = { showCrashDialog = false },
+            onHoldHint = showHoldHint,
         )
     }
     val fingerprintKind = fingerprintDialogKind
@@ -1516,7 +1545,12 @@ fun EditorScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Auto fingerprint", modifier = Modifier.weight(1f))
+                    HintText(
+                        text = "Auto fingerprint",
+                        hint = HintCopy.AUTO_FINGERPRINT,
+                        onHint = showHoldHint,
+                        modifier = Modifier.weight(1f),
+                    )
                     Switch(autoFingerprint, onCheckedChange = { autoFingerprint = it })
                 }
             },
@@ -1559,11 +1593,13 @@ fun EditorScreen(
             },
             onDismiss = { showScheduleDialog = false },
             onGraceHint = { graceHint = true },
+            onHoldHint = showHoldHint,
         )
     }
     if (showLiveNotifyDialog) {
         LiveNotifyDialog(
             showName = draft.liveNotifyShowName,
+            onHoldHint = showHoldHint,
             onConfirm = { showName ->
                 onChange(draft.copy(liveNotifyShowName = showName))
                 showLiveNotifyDialog = false
@@ -1580,6 +1616,7 @@ fun EditorScreen(
                 else -> draft.callContactEntries()
             },
             quietCall = "quiet_call" in draft.alarmEffectIds,
+            onHoldHint = showHoldHint,
             onPick = { openContactPicker(if (activeCallKind == "safety") "safety_call" else "call") },
             onConfirm = { entries, quiet ->
                 val withQuiet = if (activeCallKind == "alarm") {
@@ -1610,6 +1647,7 @@ fun EditorScreen(
                 else -> draft.alarmSmsBody
             },
             includePanicInfo = draft.sendTriggerMode,
+            onHoldHint = showHoldHint,
             messagePlaceholder = when (activeSmsKind) {
                 "safety" -> "I am safe"
                 else -> "I need help"
@@ -1653,6 +1691,7 @@ fun EditorScreen(
             body = body,
             urgency = urgency,
             defaultMessage = defaultMessage,
+            onHoldHint = showHoldHint,
             onConfirm = { newBody, newUrgency ->
                 onChange(
                     when (activeNotificationKind) {
@@ -1684,6 +1723,7 @@ fun EditorScreen(
         }
         TurnoverDialog(
             holdMs = holdMs,
+            onHoldHint = showHoldHint,
             onConfirm = { ms ->
                 val coerced = ms.coerceAtLeast(100L)
                 onChange(
@@ -1769,6 +1809,7 @@ private fun ContactListSection(
 private fun SetPinDialog(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var pinText by remember { mutableStateOf("") }
     AlertDialog(
@@ -1780,9 +1821,12 @@ private fun SetPinDialog(
                 onValueChange = { value ->
                     pinText = value.filter { it.isDigit() }.take(8)
                 },
-                label = { Text("PIN (4–8 digits)") },
+                label = hintFieldLabel("PIN (4–8 digits)", HintCopy.SET_PIN, onHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { onHoldHint(HintCopy.SET_PIN) },
             )
         },
         confirmButton = {
@@ -1797,7 +1841,6 @@ private fun SetPinDialog(
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MinutesField(
     label: String,
@@ -1816,27 +1859,18 @@ private fun MinutesField(
             Text(
                 label,
                 modifier = if (onLabelLongPress != null) {
-                    Modifier.combinedClickable(
-                        onClick = { },
-                        onLongClick = onLabelLongPress,
-                    )
+                    Modifier.watchHoldHint(onLabelLongPress)
                 } else {
                     Modifier
                 },
             )
         },
+        placeholder = { },
         modifier = Modifier
             .fillMaxWidth()
             .then(
                 if (onLabelLongPress != null) {
-                    Modifier.semantics {
-                        customActions = listOf(
-                            CustomAccessibilityAction("Hint") {
-                                onLabelLongPress()
-                                true
-                            },
-                        )
-                    }
+                    Modifier.hintSemantics(onLabelLongPress)
                 } else {
                     Modifier
                 },
@@ -1850,9 +1884,15 @@ private fun CheckInBeforeField(
     hour: Int,
     minute: Int,
     onTime: (Int, Int) -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var show by remember { mutableStateOf(false) }
-    TextButton(onClick = { show = true }, modifier = Modifier.fillMaxWidth()) {
+    TextButton(
+        onClick = { show = true },
+        modifier = Modifier
+            .fillMaxWidth()
+            .watchHoldHint { onHoldHint(HintCopy.CHECK_IN_BEFORE) },
+    ) {
         Text("Check in before %02d:%02d".format(hour, minute))
     }
     if (show) {
@@ -1923,6 +1963,8 @@ private fun EffectGroup(
     onRemove: (String) -> Unit,
     nested: Boolean = false,
     hint: String = "",
+    optionHint: (String) -> String = { "" },
+    onHoldHint: (String) -> Unit = {},
     conflictMessage: String = "Highlighted effects cannot be held at the same time",
     footer: @Composable () -> Unit = {},
 ) {
@@ -1952,8 +1994,10 @@ private fun EffectGroup(
                     }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         options.filter { it.first !in ids }.forEach { (id, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
+                            HintMenuItem(
+                                label = label,
+                                hint = optionHint(id),
+                                onHint = onHoldHint,
                                 onClick = {
                                     onAdd(id)
                                     menu = false
@@ -1989,6 +2033,7 @@ private fun SoundDurationDialog(
     allowUntilDismissed: Boolean,
     onSelect: (Long) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var until by remember { mutableStateOf(untilDismissed && allowUntilDismissed) }
     var text by remember {
@@ -2004,7 +2049,12 @@ private fun SoundDurationDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Until dismissed", modifier = Modifier.weight(1f))
+                        HintText(
+                            text = "Until dismissed",
+                            hint = HintCopy.UNTIL_DISMISSED,
+                            onHint = onHoldHint,
+                            modifier = Modifier.weight(1f),
+                        )
                         Switch(until, onCheckedChange = { until = it })
                     }
                 }
@@ -2012,8 +2062,11 @@ private fun SoundDurationDialog(
                     OutlinedTextField(
                         value = text,
                         onValueChange = { text = it },
-                        label = { Text("Duration") },
-                        modifier = Modifier.fillMaxWidth(),
+                        label = hintFieldLabel("Duration", HintCopy.DURATION, onHoldHint),
+                        placeholder = { },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .hintSemantics { onHoldHint(HintCopy.DURATION) },
                     )
                 }
             }
@@ -2044,6 +2097,7 @@ private fun FlashlightSettingsDialog(
     flickerOffMs: Long,
     onSelect: (durationMs: Long, mode: String, onMs: Long, offMs: Long) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var until by remember { mutableStateOf(untilDismissed && allowUntilDismissed) }
     var text by remember {
@@ -2068,7 +2122,12 @@ private fun FlashlightSettingsDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Until dismissed", modifier = Modifier.weight(1f))
+                        HintText(
+                            text = "Until dismissed",
+                            hint = HintCopy.UNTIL_DISMISSED,
+                            onHint = onHoldHint,
+                            modifier = Modifier.weight(1f),
+                        )
                         Switch(until, onCheckedChange = { until = it })
                     }
                 }
@@ -2076,8 +2135,11 @@ private fun FlashlightSettingsDialog(
                     OutlinedTextField(
                         value = text,
                         onValueChange = { text = it },
-                        label = { Text("Duration") },
-                        modifier = Modifier.fillMaxWidth(),
+                        label = hintFieldLabel("Duration", HintCopy.DURATION, onHoldHint),
+                        placeholder = { },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .hintSemantics { onHoldHint(HintCopy.DURATION) },
                     )
                 }
                 if (mode != OverwatchConfig.FLASHLIGHT_SOS) {
@@ -2085,7 +2147,12 @@ private fun FlashlightSettingsDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Flicker", modifier = Modifier.weight(1f))
+                        HintText(
+                            text = "Flicker",
+                            hint = HintCopy.FLICKER,
+                            onHint = onHoldHint,
+                            modifier = Modifier.weight(1f),
+                        )
                         Switch(
                             checked = mode == OverwatchConfig.FLASHLIGHT_FLICKER,
                             onCheckedChange = { on ->
@@ -2102,14 +2169,20 @@ private fun FlashlightSettingsDialog(
                     OutlinedTextField(
                         value = onText,
                         onValueChange = { onText = it },
-                        label = { Text("On (seconds)") },
-                        modifier = Modifier.fillMaxWidth(),
+                        label = hintFieldLabel("On (seconds)", HintCopy.FLICKER_ON, onHoldHint),
+                        placeholder = { },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .hintSemantics { onHoldHint(HintCopy.FLICKER_ON) },
                     )
                     OutlinedTextField(
                         value = offText,
                         onValueChange = { offText = it },
-                        label = { Text("Off (seconds)") },
-                        modifier = Modifier.fillMaxWidth(),
+                        label = hintFieldLabel("Off (seconds)", HintCopy.FLICKER_OFF, onHoldHint),
+                        placeholder = { },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .hintSemantics { onHoldHint(HintCopy.FLICKER_OFF) },
                     )
                 }
                 if (mode != OverwatchConfig.FLASHLIGHT_FLICKER) {
@@ -2117,7 +2190,12 @@ private fun FlashlightSettingsDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("SOS", modifier = Modifier.weight(1f))
+                        HintText(
+                            text = "SOS",
+                            hint = HintCopy.SOS,
+                            onHint = onHoldHint,
+                            modifier = Modifier.weight(1f),
+                        )
                         Switch(
                             checked = mode == OverwatchConfig.FLASHLIGHT_SOS,
                             onCheckedChange = { on ->
@@ -2316,6 +2394,7 @@ private fun CrashSensitivityDialog(
     stillnessMs: Long,
     onConfirm: (Float, Long, Long) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var gText by remember { mutableStateOf(formatCrashGInput(thresholdG)) }
     var ignoreText by remember {
@@ -2347,12 +2426,12 @@ private fun CrashSensitivityDialog(
                         val selected = CrashSensitivity.fromThresholdG(
                             gText.toFloatOrNull() ?: thresholdG,
                         ) == option
-                        FilterChip(
+                        HintFilterChip(
                             selected = selected,
+                            label = option.name.lowercase().replaceFirstChar { it.titlecase() },
+                            hint = HintCopy.crashSensitivity(option),
+                            onHint = onHoldHint,
                             onClick = { applyPreset(option) },
-                            label = {
-                                Text(option.name.lowercase().replaceFirstChar { it.titlecase() })
-                            },
                         )
                     }
                 }
@@ -2361,21 +2440,30 @@ private fun CrashSensitivityDialog(
                     onValueChange = { value ->
                         gText = value.filter { it.isDigit() || it == '.' }.take(5)
                     },
-                    label = { Text("G's") },
+                    label = hintFieldLabel("G's", HintCopy.CRASH_G, onHoldHint),
+                    placeholder = { },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hintSemantics { onHoldHint(HintCopy.CRASH_G) },
                 )
                 OutlinedTextField(
                     value = ignoreText,
                     onValueChange = { ignoreText = it },
-                    label = { Text("Ignore") },
-                    modifier = Modifier.fillMaxWidth(),
+                    label = hintFieldLabel("Ignore", HintCopy.CRASH_IGNORE, onHoldHint),
+                    placeholder = { },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hintSemantics { onHoldHint(HintCopy.CRASH_IGNORE) },
                 )
                 OutlinedTextField(
                     value = stillText,
                     onValueChange = { stillText = it },
-                    label = { Text("Stillness") },
-                    modifier = Modifier.fillMaxWidth(),
+                    label = hintFieldLabel("Stillness", HintCopy.CRASH_STILLNESS, onHoldHint),
+                    placeholder = { },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hintSemantics { onHoldHint(HintCopy.CRASH_STILLNESS) },
                 )
             }
         },
@@ -2406,6 +2494,7 @@ private fun ShakeSettingsDialog(
     count: Int,
     onSelect: (ShakeStrength, Int) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var selected by remember { mutableStateOf(strength) }
     var countText by remember { mutableStateOf(count.toString()) }
@@ -2414,24 +2503,27 @@ private fun ShakeSettingsDialog(
         title = { Text("Shake settings") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Strength")
+                HintText(text = "Strength", hint = HintCopy.SHAKE_STRENGTH, onHint = onHoldHint)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ShakeStrength.entries.forEach { option ->
-                        FilterChip(
+                        HintFilterChip(
                             selected = selected == option,
+                            label = option.name.lowercase().replaceFirstChar { it.titlecase() },
+                            hint = HintCopy.shakeStrength(option),
+                            onHint = onHoldHint,
                             onClick = { selected = option },
-                            label = {
-                                Text(option.name.lowercase().replaceFirstChar { it.titlecase() })
-                            },
                         )
                     }
                 }
                 OutlinedTextField(
                     value = countText,
                     onValueChange = { countText = it.filter { c -> c.isDigit() }.take(2) },
-                    label = { Text("Shake count") },
+                    label = hintFieldLabel("Shake count", HintCopy.SHAKE_COUNT, onHoldHint),
+                    placeholder = { },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hintSemantics { onHoldHint(HintCopy.SHAKE_COUNT) },
                 )
             }
         },
@@ -2453,6 +2545,7 @@ private fun PowerTapsDialog(
     taps: Int,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var text by remember { mutableStateOf(taps.toString()) }
     AlertDialog(
@@ -2462,9 +2555,12 @@ private fun PowerTapsDialog(
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it.filter { c -> c.isDigit() }.take(2) },
-                label = { Text("Taps") },
+                label = hintFieldLabel("Taps", HintCopy.POWER_TAPS, onHoldHint),
+                placeholder = { },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { onHoldHint(HintCopy.POWER_TAPS) },
             )
         },
         confirmButton = {
@@ -2485,6 +2581,7 @@ private fun ScheduleDialog(
     onConfirm: (OverwatchConfig) -> Unit,
     onDismiss: () -> Unit,
     onGraceHint: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var local by remember(draft) { mutableStateOf(draft) }
     AlertDialog(
@@ -2493,51 +2590,69 @@ private fun ScheduleDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FilterChip(
+                    HintFilterChip(
                         selected = local.repeatKind == RepeatKind.SINGLE,
+                        label = "Single",
+                        hint = HintCopy.SCHEDULE_SINGLE,
+                        onHint = onHoldHint,
                         onClick = { local = local.copy(repeatKind = RepeatKind.SINGLE) },
-                        label = { Text("Single") },
                     )
                     Spacer(Modifier.padding(4.dp))
-                    FilterChip(
+                    HintFilterChip(
                         selected = local.repeatKind == RepeatKind.WINDOW || local.repeatKind == RepeatKind.COUNT,
+                        label = "Repeat",
+                        hint = HintCopy.SCHEDULE_REPEAT,
+                        onHint = onHoldHint,
                         onClick = {
                             if (local.repeatKind != RepeatKind.WINDOW && local.repeatKind != RepeatKind.COUNT) {
                                 val window = if (local.windowMs > 0L) local.windowMs else 60_000L * 60
                                 local = local.copy(repeatKind = RepeatKind.WINDOW, windowMs = window)
                             }
                         },
-                        label = { Text("Repeat") },
                     )
                     Spacer(Modifier.padding(4.dp))
-                    FilterChip(
+                    HintFilterChip(
                         selected = local.repeatKind == RepeatKind.BY_TIME,
+                        label = "By Time",
+                        hint = HintCopy.SCHEDULE_BY_TIME,
+                        onHint = onHoldHint,
                         onClick = { local = local.copy(repeatKind = RepeatKind.BY_TIME) },
-                        label = { Text("By Time") },
                     )
                 }
                 if (local.repeatKind == RepeatKind.WINDOW || local.repeatKind == RepeatKind.COUNT) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        FilterChip(
+                        HintFilterChip(
                             selected = local.repeatKind == RepeatKind.WINDOW,
+                            label = "Over an interval",
+                            hint = HintCopy.SCHEDULE_INTERVAL,
+                            onHint = onHoldHint,
                             onClick = { local = local.copy(repeatKind = RepeatKind.WINDOW) },
-                            label = { Text("Over an interval") },
                         )
                         Spacer(Modifier.padding(4.dp))
-                        FilterChip(
+                        HintFilterChip(
                             selected = local.repeatKind == RepeatKind.COUNT,
+                            label = "Count",
+                            hint = HintCopy.SCHEDULE_COUNT,
+                            onHint = onHoldHint,
                             onClick = { local = local.copy(repeatKind = RepeatKind.COUNT) },
-                            label = { Text("Count") },
                         )
                     }
                 }
                 if (local.repeatKind != RepeatKind.BY_TIME) {
-                    MinutesField("Check in every", local.intervalMs) {
+                    MinutesField(
+                        "Check in every",
+                        local.intervalMs,
+                        onLabelLongPress = { onHoldHint(HintCopy.CHECK_IN_EVERY) },
+                    ) {
                         local = local.copy(intervalMs = it)
                     }
                 }
                 if (local.repeatKind == RepeatKind.WINDOW) {
-                    MinutesField("Over", local.windowMs) {
+                    MinutesField(
+                        "Over",
+                        local.windowMs,
+                        onLabelLongPress = { onHoldHint(HintCopy.SCHEDULE_INTERVAL) },
+                    ) {
                         local = local.copy(windowMs = it)
                     }
                 }
@@ -2545,8 +2660,11 @@ private fun ScheduleDialog(
                     OutlinedTextField(
                         value = local.repeatCount.toString(),
                         onValueChange = { local = local.copy(repeatCount = it.toIntOrNull() ?: 0) },
-                        label = { Text("Number of Times") },
-                        modifier = Modifier.fillMaxWidth(),
+                        label = hintFieldLabel("Number of Times", HintCopy.NUMBER_OF_TIMES, onHoldHint),
+                        placeholder = { },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .hintSemantics { onHoldHint(HintCopy.NUMBER_OF_TIMES) },
                     )
                 }
                 if (local.repeatKind == RepeatKind.BY_TIME) {
@@ -2554,6 +2672,7 @@ private fun ScheduleDialog(
                         hour = local.checkInHour,
                         minute = local.checkInMinute,
                         onTime = { h, m -> local = local.copy(checkInHour = h, checkInMinute = m) },
+                        onHoldHint = onHoldHint,
                     )
                 }
                 MinutesField(
@@ -2578,6 +2697,7 @@ private fun LiveNotifyDialog(
     showName: Boolean,
     onConfirm: (Boolean) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var show by remember { mutableStateOf(showName) }
     AlertDialog(
@@ -2588,7 +2708,12 @@ private fun LiveNotifyDialog(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Show active Overwatch", modifier = Modifier.weight(1f))
+                HintText(
+                    text = "Show active Overwatch",
+                    hint = HintCopy.SHOW_ACTIVE_OVERWATCH,
+                    onHint = onHoldHint,
+                    modifier = Modifier.weight(1f),
+                )
                 Switch(show, onCheckedChange = { show = it })
             }
         },
@@ -2609,6 +2734,7 @@ private fun CallDialog(
     onPick: () -> Unit,
     onConfirm: (List<String>, Boolean) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var localEntries by remember(kind, entries) { mutableStateOf(entries) }
     var quiet by remember(kind, quietCall) { mutableStateOf(quietCall) }
@@ -2634,7 +2760,12 @@ private fun CallDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Quiet call (best effort)", modifier = Modifier.weight(1f))
+                        HintText(
+                            text = "Quiet call (best effort)",
+                            hint = HintCopy.QUIET_CALL,
+                            onHint = onHoldHint,
+                            modifier = Modifier.weight(1f),
+                        )
                         Switch(quiet, onCheckedChange = { quiet = it })
                     }
                 }
@@ -2659,6 +2790,7 @@ private fun SmsDialog(
     onPick: () -> Unit,
     onConfirm: (List<String>, String, Boolean) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var localEntries by remember(kind, entries) { mutableStateOf(entries) }
     var localMessage by remember(kind, message) { mutableStateOf(message) }
@@ -2683,9 +2815,11 @@ private fun SmsDialog(
                 OutlinedTextField(
                     value = localMessage,
                     onValueChange = { localMessage = it },
-                    label = { Text("Message") },
+                    label = hintFieldLabel("Message", HintCopy.SMS_MESSAGE, onHoldHint),
                     placeholder = { Text(messagePlaceholder) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hintSemantics { onHoldHint(HintCopy.SMS_MESSAGE) },
                     minLines = 2,
                 )
                 if (kind == "alarm") {
@@ -2693,7 +2827,12 @@ private fun SmsDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("Include panic info", modifier = Modifier.weight(1f))
+                        HintText(
+                            text = "Include panic info",
+                            hint = HintCopy.INCLUDE_PANIC_INFO,
+                            onHint = onHoldHint,
+                            modifier = Modifier.weight(1f),
+                        )
                         Switch(panic, onCheckedChange = { panic = it })
                     }
                 }
@@ -2716,6 +2855,7 @@ private fun NotificationSettingsDialog(
     defaultMessage: String,
     onConfirm: (String, NotificationUrgency) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var localBody by remember(body) { mutableStateOf(body) }
     var localUrgency by remember(urgency) { mutableStateOf(urgency) }
@@ -2727,20 +2867,22 @@ private fun NotificationSettingsDialog(
                 OutlinedTextField(
                     value = localBody,
                     onValueChange = { localBody = it },
-                    label = { Text("Message") },
+                    label = hintFieldLabel("Message", HintCopy.NOTIFICATION_MESSAGE, onHoldHint),
                     placeholder = { Text(defaultMessage) },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hintSemantics { onHoldHint(HintCopy.NOTIFICATION_MESSAGE) },
                     minLines = 2,
                 )
-                Text("Urgency")
+                HintText(text = "Urgency", hint = HintCopy.URGENCY, onHint = onHoldHint)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     NotificationUrgency.entries.forEach { option ->
-                        FilterChip(
+                        HintFilterChip(
                             selected = localUrgency == option,
+                            label = option.name.lowercase().replaceFirstChar { it.titlecase() },
+                            hint = HintCopy.urgency(option),
+                            onHint = onHoldHint,
                             onClick = { localUrgency = option },
-                            label = {
-                                Text(option.name.lowercase().replaceFirstChar { it.titlecase() })
-                            },
                         )
                     }
                 }
@@ -2760,6 +2902,7 @@ private fun TurnoverDialog(
     holdMs: Long,
     onConfirm: (Long) -> Unit,
     onDismiss: () -> Unit,
+    onHoldHint: (String) -> Unit = {},
 ) {
     var text by remember(holdMs) {
         mutableStateOf(OverwatchConfig.formatDurationInput(holdMs.coerceAtLeast(100L)))
@@ -2771,8 +2914,11 @@ private fun TurnoverDialog(
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text("Hold duration") },
-                modifier = Modifier.fillMaxWidth(),
+                label = hintFieldLabel("Hold duration", HintCopy.HOLD_DURATION, onHoldHint),
+                placeholder = { },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hintSemantics { onHoldHint(HintCopy.HOLD_DURATION) },
             )
         },
         confirmButton = {
