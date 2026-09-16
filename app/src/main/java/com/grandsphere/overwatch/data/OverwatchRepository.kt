@@ -128,8 +128,10 @@ class OverwatchRepository(
         try {
             val rows = ImportDatabaseValidator.sanitizeAndRead(tmp)
             db.withTransaction {
+                dao.deleteAllConfigs()
                 for (row in rows) dao.insert(row)
             }
+            ensureDefault()
         } finally {
             tmp.delete()
         }

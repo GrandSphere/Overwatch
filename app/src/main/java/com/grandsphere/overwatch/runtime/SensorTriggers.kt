@@ -42,7 +42,8 @@ class SensorTriggers(
     private var powerTapsNeeded = 3
     private var shakeStrength = ShakeStrength.MEDIUM
     private var shakeCountNeeded = 3
-    private var crashThresholdG = 8f
+    private var crashThresholdG = 10f
+    private var crashIgnoreMs = 5_000L
     private var crashStillnessMs = 50_000L
     private var turnoverHoldMs = 700L
 
@@ -51,8 +52,7 @@ class SensorTriggers(
     private var lastShakeAt = 0L
     private var faceDownSince = 0L
     private var crashCooldownUntil = 0L
-    private var crashSpikeAt = 0L
-    private var crashStillSince = 0L
+    private val crashCandidates = mutableListOf<CrashCandidate>()
 
     private var lastKey: String? = null
 
@@ -80,6 +80,7 @@ class SensorTriggers(
             config.dismissShakeCount,
             config.cancelShakeCount,
             config.crashThresholdG,
+            config.crashIgnoreMs,
             config.crashStillnessMs,
             config.turnoverHoldMs,
             config.dismissTurnoverHoldMs,
@@ -120,7 +121,9 @@ class SensorTriggers(
             else -> config.cancelShakeCount
         }.coerceIn(1, 10)
         crashThresholdG = config.crashThresholdG.coerceIn(1f, 16f)
+        crashIgnoreMs = config.crashIgnoreMs.coerceAtLeast(0L)
         crashStillnessMs = config.crashStillnessMs.coerceAtLeast(1_000L)
+        crashCandidates.clear()
         turnoverHoldMs = when {
             PanicModeCatalog.usesTurnover(panic) -> config.turnoverHoldMs
             DismissCatalog.usesTurnover(dismiss) -> config.dismissTurnoverHoldMs
@@ -145,8 +148,7 @@ class SensorTriggers(
         screenToggleTimes.clear()
         shakeHitTimes.clear()
         faceDownSince = 0L
-        crashSpikeAt = 0L
-        crashStillSince = 0L
+        crashCandidates.clear()
         registered = false
     }
 
@@ -242,26 +244,41 @@ class SensorTriggers(
 
         if (wantCrash && now >= crashCooldownUntil) {
             val spikeThreshold = crashThresholdG * g
-            if (crashSpikeAt == 0L) {
-                if (mag > spikeThreshold) {
-                    crashSpikeAt = now
-                    crashStillSince = 0L
-                    VerboseLog.d("Sensor", "crash spike mag=$mag thr=${crashThresholdG}g")
+            if (mag > spikeThreshold) {
+                if (crashCandidates.size >= CRASH_CANDIDATE_CAP) {
+                    crashCandidates.removeAt(0)
                 }
-            } else if (isNearlyStill(mag, g)) {
-                if (crashStillSince == 0L) crashStillSince = now
-                else if (now - crashStillSince >= crashStillnessMs) {
-                    crashCooldownUntil = now + CRASH_COOLDOWN_MS
-                    crashSpikeAt = 0L
-                    crashStillSince = 0L
-                    VerboseLog.ok(
-                        "Sensor",
-                        "crash detect thr=${crashThresholdG}g still=${crashStillnessMs}ms",
-                    )
-                    fire(PanicModeCatalog.CRASH_DETECT)
+                crashCandidates += CrashCandidate(
+                    joltAt = now,
+                    ignoreUntil = now + crashIgnoreMs,
+                )
+                VerboseLog.d("Sensor", "crash jolt mag=$mag thr=${crashThresholdG}g")
+            }
+            val still = isNearlyStill(mag, g)
+            var fireCrash = false
+            val iterator = crashCandidates.iterator()
+            while (iterator.hasNext()) {
+                val candidate = iterator.next()
+                if (now <= candidate.ignoreUntil) continue
+                if (!still) {
+                    iterator.remove()
+                    continue
                 }
-            } else {
-                crashStillSince = 0L
+                if (candidate.stillSince == 0L) {
+                    candidate.stillSince = now
+                } else if (now - candidate.stillSince >= crashStillnessMs) {
+                    fireCrash = true
+                    break
+                }
+            }
+            if (fireCrash) {
+                crashCandidates.clear()
+                crashCooldownUntil = now + CRASH_COOLDOWN_MS
+                VerboseLog.ok(
+                    "Sensor",
+                    "crash detect thr=${crashThresholdG}g ignore=${crashIgnoreMs}ms still=${crashStillnessMs}ms",
+                )
+                fire(PanicModeCatalog.CRASH_DETECT)
             }
         }
     }
@@ -289,5 +306,12 @@ class SensorTriggers(
         private const val TURNOVER_Z_G = 0.7f
         private const val CRASH_STILL_DELTA_G = 0.35f
         private const val CRASH_COOLDOWN_MS = 5_000L
+        private const val CRASH_CANDIDATE_CAP = 3
     }
 }
+
+private data class CrashCandidate(
+    val joltAt: Long,
+    val ignoreUntil: Long,
+    var stillSince: Long = 0L,
+)

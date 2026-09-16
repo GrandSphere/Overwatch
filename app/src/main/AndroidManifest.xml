@@ -125,6 +125,9 @@
             android:name=".runtime.DeadlineReceiver"
             android:exported="false" />
         <receiver
+            android:name=".runtime.AlarmCapReceiver"
+            android:exported="false" />
+        <receiver
             android:name=".runtime.ContinuousLocationReceiver"
             android:exported="false" />
         <receiver

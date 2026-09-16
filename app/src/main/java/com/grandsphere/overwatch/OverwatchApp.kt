@@ -151,6 +151,7 @@ class OverwatchApp : Application() {
                     VerboseLog.enabled = settings.verboseLogging
                 }
                 engine.settingsPinHash = settings.pinHash
+                engine.settingsPinLength = settings.pinLength
                 engine.duressDigit = settings.duressDigit.trim().firstOrNull()
                 engine.duressPrefix = settings.duressPrefix
                 engine.panicOnTwoWrongPins = settings.panicOnTwoWrongPins

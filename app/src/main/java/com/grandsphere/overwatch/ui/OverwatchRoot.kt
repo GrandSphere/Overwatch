@@ -359,7 +359,11 @@ fun OverwatchRoot(vm: MainViewModel) {
                                     onSave = { vm.saveDraft() },
                                     onSetPin = { pin ->
                                         val hash = PinHasher.hash(pin)
-                                        vm.updateSettings(transform = { it.copy(pinHash = hash) })
+                                        vm.updateSettings(
+                                            transform = {
+                                                it.copy(pinHash = hash, pinLength = pin.length.coerceIn(4, 8))
+                                            },
+                                        )
                                     },
                                 )
                             }

@@ -18,7 +18,6 @@ object SettingsExport {
         put("panicHardwareKey", settings.panicHardwareKey.name)
         if (settings.idlePanicConfigId == null) put("idlePanicConfigId", JSONObject.NULL)
         else put("idlePanicConfigId", settings.idlePanicConfigId)
-        put("pinHash", settings.pinHash)
         put("duressDigit", settings.duressDigit)
         put("duressPrefix", settings.duressPrefix)
         put("preventCloseOnOverwatch", settings.preventCloseOnOverwatch)
@@ -52,7 +51,8 @@ object SettingsExport {
             panicActivation = obj.enum("panicActivation", current.panicActivation),
             panicHardwareKey = obj.enum("panicHardwareKey", current.panicHardwareKey),
             idlePanicConfigId = obj.mergeIdlePanic(current.idlePanicConfigId, knownConfigIds),
-            pinHash = obj.string("pinHash", current.pinHash).ifBlank { current.pinHash },
+            pinHash = current.pinHash,
+            pinLength = current.pinLength,
             duressDigit = obj.string("duressDigit", current.duressDigit),
             duressPrefix = obj.bool("duressPrefix", current.duressPrefix),
             preventCloseOnOverwatch = obj.bool("preventCloseOnOverwatch", current.preventCloseOnOverwatch),

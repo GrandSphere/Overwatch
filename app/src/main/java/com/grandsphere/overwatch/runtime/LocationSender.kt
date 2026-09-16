@@ -40,6 +40,7 @@ object LocationSender {
         includeRecentTrail: Boolean = false,
         alarmBodyOverride: String? = null,
         includeTriggerDiagnostics: Boolean = true,
+        logEffectIds: Collection<String>? = null,
     ) {
         scope.launch(Dispatchers.IO) {
             try {
@@ -101,6 +102,7 @@ object LocationSender {
                                 scope,
                                 config,
                                 "location matches last",
+                                effectIds = logEffectIds,
                             )
                         }
                         return@launch
@@ -139,7 +141,14 @@ object LocationSender {
                 )
                 if (writeLog) {
                     if (logBody.isNotEmpty()) {
-                        EventLog.append(context, repository, scope, config, logBody)
+                        EventLog.append(
+                            context,
+                            repository,
+                            scope,
+                            config,
+                            logBody,
+                            effectIds = logEffectIds,
+                        )
                     } else {
                         EventLog.append(
                             context,
@@ -147,6 +156,7 @@ object LocationSender {
                             scope,
                             config,
                             "Location skipped: no fresh location",
+                            effectIds = logEffectIds,
                         )
                     }
                 }
@@ -171,6 +181,7 @@ object LocationSender {
         scope: CoroutineScope,
         sendSms: Boolean,
         writeLog: Boolean,
+        logEffectIds: Collection<String>? = null,
     ) {
         val maxAge = LocationTrail.staleAfterMs(context)
         val loc = LocationTrail.latest()
@@ -184,6 +195,7 @@ object LocationSender {
                     scope,
                     config,
                     "Location skipped: no fresh location",
+                    effectIds = logEffectIds,
                 )
             }
             return
@@ -197,6 +209,7 @@ object LocationSender {
                     scope,
                     config,
                     "location matches last",
+                    effectIds = logEffectIds,
                 )
             }
             return
@@ -205,7 +218,7 @@ object LocationSender {
         val body = "Overwatch location update:\n$line"
         VerboseLog.ok("Location", "continuous store/check/send ${loc.latitude},${loc.longitude} age=${age}ms provider=${loc.provider}")
         if (writeLog) {
-            EventLog.append(context, repository, scope, config, body)
+            EventLog.append(context, repository, scope, config, body, effectIds = logEffectIds)
         }
         if (sendSms) sendSms(context, config, body)
         if (sendSms || writeLog) {

@@ -109,7 +109,8 @@ object ImportDatabaseValidator {
         Col("shakeCount", "`shakeCount` INTEGER NOT NULL DEFAULT 3", "3"),
         Col("dismissShakeCount", "`dismissShakeCount` INTEGER NOT NULL DEFAULT 3", "3"),
         Col("cancelShakeCount", "`cancelShakeCount` INTEGER NOT NULL DEFAULT 3", "3"),
-        Col("crashThresholdG", "`crashThresholdG` REAL NOT NULL DEFAULT 8", "8"),
+        Col("crashThresholdG", "`crashThresholdG` REAL NOT NULL DEFAULT 10", "10"),
+        Col("crashIgnoreMs", "`crashIgnoreMs` INTEGER NOT NULL DEFAULT 5000", "5000"),
         Col("crashStillnessMs", "`crashStillnessMs` INTEGER NOT NULL DEFAULT 50000", "50000"),
         Col(
             "persistentPanicNotification",
@@ -330,6 +331,7 @@ object ImportDatabaseValidator {
             }
 
         val crashThresholdG = raw.crashThresholdG.coerceIn(1f, 16f)
+        val crashIgnoreMs = raw.crashIgnoreMs.coerceAtLeast(0L)
         val crashStillnessMs = raw.crashStillnessMs.coerceAtLeast(1_000L)
 
         val name = raw.name.trim().ifBlank { "Imported" }
@@ -391,6 +393,7 @@ object ImportDatabaseValidator {
             dismissShakeCount = raw.dismissShakeCount.coerceIn(1, 10),
             cancelShakeCount = raw.cancelShakeCount.coerceIn(1, 10),
             crashThresholdG = crashThresholdG,
+            crashIgnoreMs = crashIgnoreMs,
             crashStillnessMs = crashStillnessMs,
             persistentPanicNotification = raw.persistentPanicNotification,
             liveNotifyShowName = raw.liveNotifyShowName,
@@ -568,6 +571,7 @@ object ImportDatabaseValidator {
                     dismissShakeCount = c.optionalInt("dismissShakeCount", c.optionalInt("shakeCount", 3)),
                     cancelShakeCount = c.optionalInt("cancelShakeCount", c.optionalInt("shakeCount", 3)),
                     crashThresholdG = c.optionalCrashThresholdG(),
+                    crashIgnoreMs = c.optionalCrashIgnoreMs(),
                     crashStillnessMs = c.optionalCrashStillnessMs(),
                     persistentPanicNotification = c.bool01("persistentPanicNotification"),
                     liveNotifyShowName = c.bool01("liveNotifyShowName"),
@@ -672,6 +676,7 @@ object ImportDatabaseValidator {
         put("dismissShakeCount", dismissShakeCount)
         put("cancelShakeCount", cancelShakeCount)
         put("crashThresholdG", crashThresholdG)
+        put("crashIgnoreMs", crashIgnoreMs)
         put("crashStillnessMs", crashStillnessMs)
         put("persistentPanicNotification", if (persistentPanicNotification) 1 else 0)
         put("liveNotifyShowName", if (liveNotifyShowName) 1 else 0)
@@ -770,6 +775,12 @@ private fun Cursor.optionalCrashThresholdG(): Float {
         CrashSensitivity.LOW.name -> CrashSensitivity.LOW.thresholdG
         else -> CrashSensitivity.MEDIUM.thresholdG
     }
+}
+
+private fun Cursor.optionalCrashIgnoreMs(): Long {
+    val i = getColumnIndex("crashIgnoreMs")
+    if (i >= 0 && !isNull(i)) return getLong(i).coerceAtLeast(0L)
+    return 5_000L
 }
 
 private fun Cursor.optionalCrashStillnessMs(): Long {

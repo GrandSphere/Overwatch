@@ -48,8 +48,8 @@ enum class CrashSensitivity {
 
     val thresholdG: Float
         get() = when (this) {
-            HIGH -> 5.5f
-            MEDIUM -> 8f
+            HIGH -> 7f
+            MEDIUM -> 10f
             LOW -> 12f
         }
 
@@ -126,9 +126,11 @@ data class OverwatchConfig(
     val shakeCount: Int = 3,
     val dismissShakeCount: Int = 3,
     val cancelShakeCount: Int = 3,
-    /** Crash Detect absolute spike threshold in g (Medium preset = 8). */
-    val crashThresholdG: Float = 8f,
-    /** How long must stay nearly still after spike (Medium preset = 50s). */
+    /** Crash Detect absolute spike threshold in g (Medium preset = 10). */
+    val crashThresholdG: Float = 10f,
+    /** Ignore movement this long after a jolt before stillness is required (default 5s). */
+    val crashIgnoreMs: Long = 5_000L,
+    /** How long must stay nearly still after ignore (Medium preset = 50s). */
     val crashStillnessMs: Long = 50_000L,
     val persistentPanicNotification: Boolean = false,
     val liveNotifyShowName: Boolean = false,
@@ -346,6 +348,8 @@ data class AppSettings(
     val lightTheme: Boolean = false,
     val batteryPrompted: Boolean = false,
     val pinHash: String = "",
+    /** Digit count of the stored PIN; 0 means unknown (legacy hashes treated as 4). */
+    val pinLength: Int = 0,
     val duressDigit: String = "",
     val duressPrefix: Boolean = false,
     val preventCloseOnOverwatch: Boolean = false,

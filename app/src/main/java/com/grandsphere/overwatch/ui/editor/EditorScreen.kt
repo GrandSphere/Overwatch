@@ -69,6 +69,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.core.content.ContextCompat
 import com.grandsphere.overwatch.OverwatchApp
 import com.grandsphere.overwatch.ui.chrome.CollapsibleSection
+import com.grandsphere.overwatch.ui.chrome.FingerprintAuth
 import com.grandsphere.overwatch.domain.catalog.AlarmCatalog
 import com.grandsphere.overwatch.domain.catalog.CancelCatalog
 import com.grandsphere.overwatch.domain.catalog.DismissCatalog
@@ -112,6 +113,14 @@ fun EditorScreen(
     val safetyIds = draft.safetyEffectIds.filter { AlarmCatalog.isAllowedInSafety(it) }
     val safetyConflicts = AlarmCatalog.conflicts(safetyIds, draft.covert)
     val panicConflicts = PanicModeCatalog.conflicts(draft.panicEffectIds)
+    val sensorModeConflicts = sharedSensorConflicts(
+        panicIds = draft.panicEffectIds,
+        dismissIds = draft.dismissEffectIds,
+        cancelIds = draft.cancelEffectIds,
+    )
+    val dismissConflictsAll = dismissConflicts + sensorModeConflicts.dismiss
+    val cancelConflictsAll = cancelConflicts + sensorModeConflicts.cancel
+    val panicConflictsAll = panicConflicts + sensorModeConflicts.panic
     val needsAlarmSms = "sms" in draft.alarmEffectIds
     val needsAlarmCall = draft.alarmEffectIds.any { it == "call" || it == "quiet_call" }
     val needsSafetySms = "sms" in safetyIds
@@ -148,6 +157,7 @@ fun EditorScreen(
     var turnoverDialogKind by remember { mutableStateOf<String?>(null) }
     var showPinDialog by remember { mutableStateOf(false) }
     var fingerprintDialogKind by remember { mutableStateOf<String?>(null) }
+    var fingerprintUnavailable by remember { mutableStateOf(false) }
     var lastFiniteNotifyDurationMs by rememberSaveable {
         mutableStateOf(
             if (draft.notifySoundDurationMs > 0L) draft.notifySoundDurationMs else 30_000L,
@@ -189,6 +199,13 @@ fun EditorScreen(
         } else {
             showPinDialog = true
             after()
+        }
+    }
+    fun addFingerprintIfAvailable(add: () -> Unit) {
+        if (FingerprintAuth.canAuthenticate(context)) {
+            add()
+        } else {
+            fingerprintUnavailable = true
         }
     }
     val requestFeature = rememberLauncherForActivityResult(
@@ -538,7 +555,7 @@ fun EditorScreen(
             ids = DismissCatalog.chipIds(draft.dismissEffectIds),
             labels = { DismissCatalog.labelOf(it) },
             options = DismissCatalog.menuOptions(),
-            conflicts = dismissConflicts,
+            conflicts = dismissConflictsAll,
             conflictMessage = when {
                 pinRequiredMissing && DismissCatalog.conflicts(draft.dismissEffectIds).isEmpty() ->
                     "Set a PIN to use this dismiss method"
@@ -572,7 +589,13 @@ fun EditorScreen(
                         )
                     }
                 }
-                if (id == "pin") requirePinOrPrompt(addDismiss) else addDismiss()
+                if (id == "pin") {
+                    requirePinOrPrompt(addDismiss)
+                } else if (id == "fingerprint") {
+                    addFingerprintIfAvailable(addDismiss)
+                } else {
+                    addDismiss()
+                }
             },
             onRemove = { id ->
                 val current = draftRef.current
@@ -606,6 +629,7 @@ fun EditorScreen(
                     shakeStrength = draft.dismissShakeStrength,
                     shakeCount = draft.dismissShakeCount,
                     crashThresholdG = draft.crashThresholdG,
+                    crashIgnoreMs = draft.crashIgnoreMs,
                     crashStillnessMs = draft.crashStillnessMs,
                     turnoverHoldMs = draft.dismissTurnoverHoldMs,
                     showCrash = false,
@@ -762,7 +786,7 @@ fun EditorScreen(
             ids = draft.panicEffectIds,
             labels = { PanicModeCatalog.labelOf(it) },
             options = PanicModeCatalog.menuOptions(),
-            conflicts = panicConflicts,
+            conflicts = panicConflictsAll,
             onAdd = { id ->
                 val current = draftRef.current
                 val next = when {
@@ -778,6 +802,7 @@ fun EditorScreen(
                         } else {
                             current.crashThresholdG
                         },
+                        crashIgnoreMs = if (crashDefaults) 5_000L else current.crashIgnoreMs,
                         crashStillnessMs = if (crashDefaults) {
                             CrashSensitivity.MEDIUM.defaultStillnessMs
                         } else {
@@ -801,6 +826,7 @@ fun EditorScreen(
                     shakeStrength = draft.shakeStrength,
                     shakeCount = draft.shakeCount,
                     crashThresholdG = draft.crashThresholdG,
+                    crashIgnoreMs = draft.crashIgnoreMs,
                     crashStillnessMs = draft.crashStillnessMs,
                     turnoverHoldMs = draft.turnoverHoldMs,
                     showCrash = true,
@@ -962,7 +988,7 @@ fun EditorScreen(
             ids = CancelCatalog.chipIds(draft.cancelEffectIds),
             labels = { CancelCatalog.labelOf(it) },
             options = CancelCatalog.menuOptions(),
-            conflicts = cancelConflicts,
+            conflicts = cancelConflictsAll,
             conflictMessage = when {
                 pinRequiredMissing && CancelCatalog.conflicts(draft.cancelEffectIds).isEmpty() ->
                     "Set a PIN to use this cancel method"
@@ -984,7 +1010,13 @@ fun EditorScreen(
                     }
                     onChange(current.copy(cancelEffectIds = next))
                 }
-                if (id == "pin") requirePinOrPrompt(addCancel) else addCancel()
+                if (id == "pin") {
+                    requirePinOrPrompt(addCancel)
+                } else if (id == "fingerprint") {
+                    addFingerprintIfAvailable(addCancel)
+                } else {
+                    addCancel()
+                }
             },
             onRemove = { id ->
                 val next = if (id == "fingerprint") {
@@ -1014,6 +1046,7 @@ fun EditorScreen(
                         shakeStrength = draft.cancelShakeStrength,
                         shakeCount = draft.cancelShakeCount,
                         crashThresholdG = draft.crashThresholdG,
+                        crashIgnoreMs = draft.crashIgnoreMs,
                         crashStillnessMs = draft.crashStillnessMs,
                         turnoverHoldMs = draft.cancelTurnoverHoldMs,
                         showCrash = false,
@@ -1060,6 +1093,16 @@ fun EditorScreen(
             text = { Text(message) },
             confirmButton = {
                 TextButton(onClick = { incompleteDialog = null }) { Text("OK") }
+            },
+        )
+    }
+    if (fingerprintUnavailable) {
+        AlertDialog(
+            onDismissRequest = { fingerprintUnavailable = false },
+            title = { Text("Fingerprint") },
+            text = { Text("This device cannot use fingerprint authentication.") },
+            confirmButton = {
+                TextButton(onClick = { fingerprintUnavailable = false }) { Text("OK") }
             },
         )
     }
@@ -1435,11 +1478,13 @@ fun EditorScreen(
     if (showCrashDialog) {
         CrashSensitivityDialog(
             thresholdG = draft.crashThresholdG,
+            ignoreMs = draft.crashIgnoreMs,
             stillnessMs = draft.crashStillnessMs,
-            onConfirm = { g, still ->
+            onConfirm = { g, ignore, still ->
                 onChange(
                     draft.copy(
                         crashThresholdG = g.coerceIn(1f, 16f),
+                        crashIgnoreMs = ignore.coerceAtLeast(0L),
                         crashStillnessMs = still.coerceAtLeast(1_000L),
                     ),
                 )
@@ -1826,6 +1871,40 @@ private fun CheckInBeforeField(
     }
 }
 
+private val sharedSensorIds = setOf("shake", "power_button", "turnover")
+
+private data class SharedSensorConflicts(
+    val panic: Set<String>,
+    val dismiss: Set<String>,
+    val cancel: Set<String>,
+)
+
+private fun sharedSensorConflicts(
+    panicIds: Collection<String>,
+    dismissIds: Collection<String>,
+    cancelIds: Collection<String>,
+): SharedSensorConflicts {
+    val panic = panicIds.toSet()
+    val dismiss = dismissIds.toSet()
+    val cancelResolved = CancelCatalog.resolvedProofIds(cancelIds, dismissIds).toSet()
+    val explicitCancel = if (CancelCatalog.SAME_AS_DISMISS in cancelIds) emptySet() else cancelResolved
+    val panicVsDismiss = sharedSensorIds.filter { it in panic && it in dismiss }.toSet()
+    val panicVsCancel = sharedSensorIds.filter { it in panic && it in cancelResolved }.toSet()
+    val dismissVsCancel = sharedSensorIds.filter { it in dismiss && it in explicitCancel }.toSet()
+    val cancelChips = buildSet {
+        addAll(panicVsCancel)
+        addAll(dismissVsCancel)
+        if (CancelCatalog.SAME_AS_DISMISS in cancelIds && panicVsCancel.isNotEmpty()) {
+            add(CancelCatalog.SAME_AS_DISMISS)
+        }
+    }
+    return SharedSensorConflicts(
+        panic = panicVsDismiss + panicVsCancel,
+        dismiss = panicVsDismiss + dismissVsCancel,
+        cancel = cancelChips,
+    )
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EffectGroup(
@@ -2136,6 +2215,7 @@ private fun SensorTuningFooter(
     shakeStrength: ShakeStrength,
     shakeCount: Int,
     crashThresholdG: Float,
+    crashIgnoreMs: Long,
     crashStillnessMs: Long,
     turnoverHoldMs: Long,
     showCrash: Boolean,
@@ -2162,7 +2242,7 @@ private fun SensorTuningFooter(
     }
     if (showCrash && "crash_detect" in ids) {
         Text(
-            crashFooterLabel(crashThresholdG, crashStillnessMs),
+            crashFooterLabel(crashThresholdG, crashIgnoreMs, crashStillnessMs),
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             fontSize = 14.sp,
             modifier = Modifier.clickable(onClick = onCrash),
@@ -2176,11 +2256,12 @@ private fun SensorTuningFooter(
     }
 }
 
-private fun crashFooterLabel(thresholdG: Float, stillnessMs: Long): String {
+private fun crashFooterLabel(thresholdG: Float, ignoreMs: Long, stillnessMs: Long): String {
     val preset = CrashSensitivity.fromThresholdG(thresholdG)
     val sens = preset?.name?.lowercase()?.replaceFirstChar { it.titlecase() }
         ?: formatCrashG(thresholdG)
-    return "Crash Detect: $sens, ${OverwatchConfig.formatDuration(stillnessMs)} Stillness"
+    return "Crash Detect: $sens, ${OverwatchConfig.formatDuration(ignoreMs)} Ignore, " +
+        "${OverwatchConfig.formatDuration(stillnessMs)} Stillness"
 }
 
 private fun flashlightFooterLabel(
@@ -2225,16 +2306,24 @@ private fun formatCrashGInput(g: Float): String =
 @Composable
 private fun CrashSensitivityDialog(
     thresholdG: Float,
+    ignoreMs: Long,
     stillnessMs: Long,
-    onConfirm: (Float, Long) -> Unit,
+    onConfirm: (Float, Long, Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var gText by remember { mutableStateOf(formatCrashGInput(thresholdG)) }
+    var ignoreText by remember {
+        mutableStateOf(OverwatchConfig.formatDurationInput(ignoreMs.coerceAtLeast(0L)))
+    }
     var stillText by remember {
         mutableStateOf(OverwatchConfig.formatDurationInput(stillnessMs.coerceAtLeast(1_000L)))
     }
     fun applyPreset(option: CrashSensitivity) {
         gText = formatCrashGInput(option.thresholdG)
+        val typedIgnore = OverwatchConfig.parseDurationInput(ignoreText)
+        if (typedIgnore == 5_000L) {
+            ignoreText = OverwatchConfig.formatDurationInput(5_000L)
+        }
         stillText = OverwatchConfig.formatDurationInput(option.defaultStillnessMs)
     }
     AlertDialog(
@@ -2243,7 +2332,7 @@ private fun CrashSensitivityDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "High is easiest to trip. After the jolt, the phone must stay still.",
+                    "High is easiest to trip. After the jolt, ignore bouncing, then the phone must stay still.",
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
                     fontSize = 13.sp,
                 )
@@ -2271,6 +2360,12 @@ private fun CrashSensitivityDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
+                    value = ignoreText,
+                    onValueChange = { ignoreText = it },
+                    label = { Text("Ignore") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
                     value = stillText,
                     onValueChange = { stillText = it },
                     label = { Text("Stillness") },
@@ -2283,7 +2378,11 @@ private fun CrashSensitivityDialog(
             TextButton(
                 onClick = {
                     if (g != null) {
-                        onConfirm(g, OverwatchConfig.parseDurationInput(stillText).coerceAtLeast(1_000L))
+                        onConfirm(
+                            g,
+                            OverwatchConfig.parseDurationInput(ignoreText).coerceAtLeast(0L),
+                            OverwatchConfig.parseDurationInput(stillText).coerceAtLeast(1_000L),
+                        )
                     }
                 },
                 enabled = g != null && g in 1f..16f,

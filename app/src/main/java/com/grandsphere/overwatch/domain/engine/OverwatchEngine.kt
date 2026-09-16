@@ -52,6 +52,9 @@ class OverwatchEngine(
     var settingsPinHash: String = ""
 
     @Volatile
+    var settingsPinLength: Int = 0
+
+    @Volatile
     var duressDigit: Char? = null
 
     @Volatile
@@ -156,16 +159,8 @@ class OverwatchEngine(
     /** Cancel pad: true if cancel succeeded or duress entered alarm (leave cancel UI). */
     fun cancelPinDigit(digit: Char, buffer: String): Pair<String, Boolean> {
         val running = _state.value as? AppState.Overwatch ?: return buffer to false
-        if (duressPrefix && buffer.isEmpty() && digit == duressDigit) {
-            if (running.submode != Submode.AlarmMode) {
-                VerboseLog.d("Engine", "cancelPinDigit duress prefix -> Alarm")
-                enterAlarm(running.config, startedByPanic = false, secret = failSecretly)
-                return "" to true
-            }
-            return "" to false
-        }
         val next = (buffer + digit).take(8)
-        if (next.length >= 4) {
+        if (next.length >= requiredPinLength()) {
             return if (cancelWithPin(next)) "" to true else "" to false
         }
         return next to false
@@ -173,22 +168,11 @@ class OverwatchEngine(
 
     fun submitPinDigit(digit: Char) {
         val running = _state.value as? AppState.Overwatch ?: return
-        if (duressPrefix && running.pinBuffer.isEmpty() && digit == duressDigit) {
-            if (running.submode != Submode.AlarmMode) {
-                VerboseLog.d("Engine", "submitPinDigit duress prefix -> Alarm")
-                enterAlarm(running.config, startedByPanic = false, secret = failSecretly)
-            } else {
-                _state.update {
-                    if (it is AppState.Overwatch) it.copy(pinBuffer = "") else it
-                }
-            }
-            return
-        }
         val next = (running.pinBuffer + digit).take(8)
         _state.update {
             if (it is AppState.Overwatch) it.copy(pinBuffer = next) else it
         }
-        if (next.length >= 4) {
+        if (next.length >= requiredPinLength()) {
             attemptProof(next)
         }
     }
@@ -398,6 +382,11 @@ class OverwatchEngine(
 
     private fun pinMatches(pin: String): Boolean =
         PinHasher.matches(pin, settingsPinHash)
+
+    private fun requiredPinLength(): Int {
+        val stored = settingsPinLength
+        return if (stored in 4..8) stored else 4
+    }
 
     private fun isDuressPin(pin: String): Boolean {
         val digit = duressDigit ?: return false

@@ -13,7 +13,7 @@ import com.grandsphere.overwatch.domain.catalog.CancelCatalog
 
 @Database(
     entities = [OverwatchConfigEntity::class, AlarmLogEntity::class, MetaEntity::class],
-        version = 17,
+        version = 18,
     exportSchema = false,
 )
 abstract class OverwatchDatabase : RoomDatabase() {
@@ -22,7 +22,7 @@ abstract class OverwatchDatabase : RoomDatabase() {
     companion object {
         const val NAME = "overwatch.db"
         const val SCHEMA_VERSION_KEY = "schema_version"
-        const val SCHEMA_VERSION = "17"
+        const val SCHEMA_VERSION = "18"
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -329,6 +329,14 @@ abstract class OverwatchDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE overwatch_configs ADD COLUMN crashIgnoreMs INTEGER NOT NULL DEFAULT 5000",
+                )
+            }
+        }
+
         fun create(context: Context): OverwatchDatabase =
             Room.databaseBuilder(context, OverwatchDatabase::class.java, NAME)
                 .addMigrations(
@@ -348,6 +356,7 @@ abstract class OverwatchDatabase : RoomDatabase() {
                     MIGRATION_14_15,
                     MIGRATION_15_16,
                     MIGRATION_16_17,
+                    MIGRATION_17_18,
                 )
                 .build()
     }

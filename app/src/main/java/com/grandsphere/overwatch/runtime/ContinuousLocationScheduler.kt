@@ -33,11 +33,18 @@ object ContinuousLocationScheduler {
         val sendSms: Boolean,
         val writeLog: Boolean,
         val minutes: Int,
+        val logEffectIds: List<String>,
     )
 
-    fun start(context: Context, configId: Long, sendSms: Boolean, writeLog: Boolean) {
+    fun start(
+        context: Context,
+        configId: Long,
+        sendSms: Boolean,
+        writeLog: Boolean,
+        logEffectIds: Collection<String>,
+    ) {
         val minutes = OverwatchApp.from(context).latestSettings.continuousLocationMinutes.coerceAtLeast(1)
-        session = Session(configId, sendSms, writeLog, minutes)
+        session = Session(configId, sendSms, writeLog, minutes, logEffectIds.toList())
         VerboseLog.ok("Location", "continuous schedule minutes=$minutes sms=$sendSms log=$writeLog")
         scheduleNext(context, minutes)
     }
@@ -93,6 +100,7 @@ object ContinuousLocationScheduler {
                             app.scope,
                             config,
                             "Location skipped: GPS not updating (device may be locked)",
+                            effectIds = current.logEffectIds,
                         )
                     }
                     return@launch
@@ -104,6 +112,7 @@ object ContinuousLocationScheduler {
                     app.scope,
                     sendSms = current.sendSms,
                     writeLog = current.writeLog,
+                    logEffectIds = current.logEffectIds,
                 )
             } catch (t: Throwable) {
                 VerboseLog.fail("Location", "continuous fetch", t)

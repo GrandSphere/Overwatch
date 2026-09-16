@@ -14,6 +14,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -69,6 +73,7 @@ import com.grandsphere.overwatch.domain.model.RecordCameraMode
 import com.grandsphere.overwatch.domain.security.PinHasher
 import com.grandsphere.overwatch.runtime.LocationFeatures
 import com.grandsphere.overwatch.ui.chrome.CollapsibleSection
+import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -186,10 +191,15 @@ fun SettingsScreen(
                 label = {
                     Text(
                         "Fake PIN digit",
-                        modifier = Modifier.combinedClickable(
-                            onClick = { },
-                            onLongClick = { fakePinHint = true },
-                        ),
+                        modifier = Modifier.pointerInput(Unit) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                val up = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                                    waitForUpOrCancellation()
+                                }
+                                if (up == null) fakePinHint = true
+                            }
+                        },
                     )
                 },
                 placeholder = { Text("Off") },
@@ -519,6 +529,11 @@ fun SettingsScreen(
         Button(
             onClick = {
                 val hashed = if (!pinIsMask && pinText.length >= 4) PinHasher.hash(pinText) else draft.pinHash
+                val pinLen = if (!pinIsMask && pinText.length >= 4) {
+                    pinText.length.coerceIn(4, 8)
+                } else {
+                    draft.pinLength
+                }
                 val videoSec = clipSecondsText.toIntOrNull()?.coerceIn(3, 120) ?: draft.videoClipSeconds
                 val audioSec = audioClipText.toIntOrNull()?.coerceIn(3, 120) ?: draft.audioClipSeconds
                 val recent = recentLocText.toIntOrNull()?.coerceAtLeast(1) ?: draft.recentLocationMinutes
@@ -530,6 +545,7 @@ fun SettingsScreen(
                 onSave(
                     draft.copy(
                         pinHash = hashed,
+                        pinLength = pinLen,
                         videoClipSeconds = videoSec,
                         audioClipSeconds = audioSec,
                         recentLocationMinutes = recent,

@@ -149,7 +149,7 @@ class AlarmDispatcher(
         if ("location" !in ids) {
             if ("sms" in ids) {
                 sendSms(config, ctx)
-            } else if (ctx.includeTriggerDiagnostics && EventLog.shouldWrite(context, config)) {
+            } else if (EventLog.shouldWrite(context, config, ids)) {
                 writeAlarmLog(config, ctx)
             }
         }
@@ -192,12 +192,12 @@ class AlarmDispatcher(
             OverwatchService.refreshRecordingTypes(context, camera = video, mic = audio)
         }
         if ("notification" in ids) postCustomNotification(config, ctx)
-        if ("location" in ids && ("sms" in ids || EventLog.shouldWrite(context, config))) {
+        if ("location" in ids && ("sms" in ids || EventLog.shouldWrite(context, config, ids))) {
             OverwatchService.refreshLocationType(context, true)
             LocationTrail.ensureHot(context)
             val settings = OverwatchApp.from(context).latestSettings
             val sendSms = "sms" in ids
-            val writeLog = EventLog.shouldWrite(context, config)
+            val writeLog = EventLog.shouldWrite(context, config, ids)
             LocationSender.send(
                 context,
                 repository,
@@ -210,10 +210,11 @@ class AlarmDispatcher(
                 includeRecentTrail = ctx.locationRecent,
                 alarmBodyOverride = ctx.smsBody,
                 includeTriggerDiagnostics = ctx.includeTriggerDiagnostics,
+                logEffectIds = ids,
             )
             if (ctx.locationContinuous && (sendSms || writeLog)) {
                 VerboseLog.d(ctx.logLabel, "location continuous")
-                startContinuous(config, sendSms = sendSms, writeLog = writeLog)
+                startContinuous(config, sendSms = sendSms, writeLog = writeLog, logEffectIds = ids)
             }
         } else if ("location" in ids) {
             VerboseLog.fail(ctx.logLabel, "location skipped needs sms or log")
@@ -248,12 +249,18 @@ class AlarmDispatcher(
         cuePlayer.playSiren(config, durationMs = config.alarmSoundDurationMs)
     }
 
-    private fun startContinuous(config: OverwatchConfig, sendSms: Boolean, writeLog: Boolean) {
+    private fun startContinuous(
+        config: OverwatchConfig,
+        sendSms: Boolean,
+        writeLog: Boolean,
+        logEffectIds: Collection<String>,
+    ) {
         ContinuousLocationScheduler.start(
             context,
             configId = config.id,
             sendSms = sendSms,
             writeLog = writeLog,
+            logEffectIds = logEffectIds,
         )
     }
 
@@ -278,7 +285,7 @@ class AlarmDispatcher(
             includeDiagnostics = ctx.includeTriggerDiagnostics,
             messageOverride = ctx.smsBody,
         )
-        EventLog.append(context, repository, scope, config, logBody)
+        EventLog.append(context, repository, scope, config, logBody, effectIds = ctx.ids)
         if (numbers.isEmpty()) {
             VerboseLog.fail("SMS", "skipped no contacts")
             return
@@ -311,10 +318,10 @@ class AlarmDispatcher(
             running = runningState(),
             config = config,
             includeMessage = true,
-            includeDiagnostics = true,
+            includeDiagnostics = ctx.includeTriggerDiagnostics,
             messageOverride = ctx.smsBody,
         )
-        EventLog.append(context, repository, scope, config, body)
+        EventLog.append(context, repository, scope, config, body, effectIds = ctx.ids)
     }
 
     private fun postCustomNotification(config: OverwatchConfig, ctx: DispatchContext) {

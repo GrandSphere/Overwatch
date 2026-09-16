@@ -36,6 +36,7 @@ class SettingsStore(private val context: Context) {
             prefs[LIGHT] = next.lightTheme
             prefs[BATTERY_PROMPTED] = next.batteryPrompted
             prefs[PIN_HASH] = next.pinHash.ifBlank { prefs[PIN_HASH].orEmpty() }
+            prefs[PIN_LENGTH] = next.pinLength.coerceIn(0, 8)
             prefs[DURESS] = next.duressDigit
             prefs[DURESS_PREFIX] = next.duressPrefix
             prefs[PREVENT_CLOSE] = next.preventCloseOnOverwatch
@@ -71,6 +72,7 @@ class SettingsStore(private val context: Context) {
         private val LIGHT = booleanPreferencesKey("light_theme")
         private val BATTERY_PROMPTED = booleanPreferencesKey("battery_prompted")
         private val PIN_HASH = stringPreferencesKey("pin_hash")
+        private val PIN_LENGTH = intPreferencesKey("pin_length")
         private val DURESS = stringPreferencesKey("duress_digit")
         private val DURESS_PREFIX = booleanPreferencesKey("duress_prefix")
         private val PREVENT_CLOSE = booleanPreferencesKey("prevent_close")
@@ -108,6 +110,7 @@ private fun Preferences.toSettings() = AppSettings(
     lightTheme = this[booleanPreferencesKey("light_theme")] ?: false,
     batteryPrompted = this[booleanPreferencesKey("battery_prompted")] ?: false,
     pinHash = this[stringPreferencesKey("pin_hash")].orEmpty(),
+    pinLength = this[intPreferencesKey("pin_length")] ?: 0,
     duressDigit = this[stringPreferencesKey("duress_digit")].orEmpty(),
     duressPrefix = this[booleanPreferencesKey("duress_prefix")] ?: false,
     preventCloseOnOverwatch = this[booleanPreferencesKey("prevent_close")] ?: false,
