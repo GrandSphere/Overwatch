@@ -325,7 +325,12 @@ fun OverwatchRoot(vm: MainViewModel) {
                 },
                 floatingActionButton = {
                     if (nav is Nav.Home) {
-                        FloatingActionButton(onClick = { vm.openEditor(null) }) {
+                              FloatingActionButton(
+                            onClick = { vm.openEditor(null) },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        ) {
+
                             Icon(Icons.Default.Add, contentDescription = "Add")
                         }
                     }
