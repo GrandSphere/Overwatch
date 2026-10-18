@@ -67,6 +67,8 @@ for %%i in ("%DIRNAME%..") do set APP_HOME=%%~fi
 
 
 if not exist "%APP_HOME%compile" mkdir "%APP_HOME%compile"
+if not exist "%APP_HOME%compile\.kotlin" mkdir "%APP_HOME%compile\.kotlin"
+if not exist "%APP_HOME%compile\.kotlin\sessions" mkdir "%APP_HOME%compile\.kotlin\sessions"
 
 set "GRADLE_USER_HOME=%APP_HOME%compile\.gradle-home"
 

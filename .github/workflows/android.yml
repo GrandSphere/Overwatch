@@ -72,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: overwatch-release
-          path: app/build/outputs/apk/release/overwatch-${{ steps.version.outputs.version }}-release.apk
+          path: compile/app/outputs/apk/release/overwatch-${{ steps.version.outputs.version }}-release.apk
 
       - name: Create GitHub Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -80,7 +80,7 @@ jobs:
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: ${{ steps.version.outputs.version }}
-          files: app/build/outputs/apk/release/overwatch-${{ steps.version.outputs.version }}-release.apk
+          files: compile/app/outputs/apk/release/overwatch-${{ steps.version.outputs.version }}-release.apk
           fail_on_unmatched_files: true
           make_latest: true
         env:
