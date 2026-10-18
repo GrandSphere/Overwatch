@@ -32,8 +32,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -41,6 +44,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -78,7 +82,6 @@ import com.grandsphere.overwatch.ui.chrome.HoldHintDialog
 import com.grandsphere.overwatch.ui.chrome.hintFieldLabel
 import com.grandsphere.overwatch.ui.chrome.hintSemantics
 import com.grandsphere.overwatch.ui.chrome.holdHintOrClick
-import com.grandsphere.overwatch.ui.chrome.watchHoldHint
 import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -86,17 +89,17 @@ import kotlinx.coroutines.withTimeoutOrNull
 fun SettingsScreen(
     settings: AppSettings,
     onSave: (AppSettings) -> Unit,
-    onExport: () -> Unit,
-    onShare: () -> Unit,
-    onShareLog: () -> Unit,
+    onExportOverwatches: () -> Unit,
+    onShareOverwatches: () -> Unit,
+    onExportSettings: () -> Unit,
+    onShareSettings: () -> Unit,
     onExportLog: () -> Unit,
+    onShareLog: () -> Unit,
     onExportVerboseLog: () -> Unit,
     onShareVerboseLog: () -> Unit,
     onImport: () -> Unit,
-    onExportSettings: () -> Unit,
-    onShareSettings: () -> Unit,
-    onImportSettings: () -> Unit,
     onClearOverwatches: () -> Unit,
+    registerSaveAction: (action: (() -> Unit)?) -> Unit,
 ) {
     val context = LocalContext.current
     var draft by remember { mutableStateOf(settings) }
@@ -138,6 +141,45 @@ fun SettingsScreen(
         VerboseLog.d("Perms", "result ${pendingPerm?.substringAfterLast('.')}=$granted")
         pendingPerm = null
         permTick++
+    }
+
+    fun commitSave() {
+        val hashed = if (!pinIsMask && pinText.length >= 4) PinHasher.hash(pinText) else draft.pinHash
+        val pinLen = if (!pinIsMask && pinText.length >= 4) {
+            pinText.length.coerceIn(4, 8)
+        } else {
+            draft.pinLength
+        }
+        val videoSec = clipSecondsText.toIntOrNull()?.coerceIn(3, 120) ?: draft.videoClipSeconds
+        val audioSec = audioClipText.toIntOrNull()?.coerceIn(3, 120) ?: draft.audioClipSeconds
+        val recent = recentLocText.toIntOrNull()?.coerceAtLeast(1) ?: draft.recentLocationMinutes
+        val recentPoints = recentPointsText.toIntOrNull()?.coerceIn(1, 20) ?: draft.recentLocationPoints
+        val cont = contLocText.toIntOrNull()?.coerceAtLeast(1) ?: draft.continuousLocationMinutes
+        val maxDur = maxDurText.toIntOrNull()?.coerceAtLeast(1) ?: draft.maxAlarmDurationMinutes
+        val maxSms = maxSmsText.toIntOrNull()?.coerceAtLeast(1) ?: draft.maxAlarmSms
+        val maxCalls = maxCallsText.toIntOrNull()?.coerceAtLeast(1) ?: draft.maxAlarmCalls
+        onSave(
+            draft.copy(
+                pinHash = hashed,
+                pinLength = pinLen,
+                videoClipSeconds = videoSec,
+                audioClipSeconds = audioSec,
+                recentLocationMinutes = recent,
+                recentLocationPoints = recentPoints,
+                continuousLocationMinutes = cont,
+                maxAlarmDurationMinutes = maxDur,
+                maxAlarmSms = maxSms,
+                maxAlarmCalls = maxCalls,
+                failSecretPhrase = draft.failSecretPhrase.trim().ifBlank { "Okay" },
+            ),
+        )
+    }
+
+    SideEffect {
+        registerSaveAction(::commitSave)
+    }
+    DisposableEffect(Unit) {
+        onDispose { registerSaveAction(null) }
     }
 
     Column(
@@ -587,22 +629,18 @@ fun SettingsScreen(
         }
 
         CollapsibleSection("Export", hint = "Copy Overwatches and settings between devices") {
-            HintActionButton("Export Overwatches", HintCopy.EXPORT_OW, showHoldHint, onExport)
-            HintActionButton("Share export Overwatches", HintCopy.SHARE_OW, showHoldHint, onShare)
-            HintActionButton("Import Overwatches", HintCopy.IMPORT_OW, showHoldHint, onImport)
-            HintActionButton("Clear Overwatches", HintCopy.CLEAR_OW, showHoldHint) { clearConfirm = true }
-            HintActionButton("Export settings", HintCopy.EXPORT_SETTINGS, showHoldHint, onExportSettings)
-            HintActionButton("Share export settings", HintCopy.SHARE_SETTINGS, showHoldHint, onShareSettings)
-            HintActionButton("Import settings", HintCopy.IMPORT_SETTINGS, showHoldHint, onImportSettings)
-            HintActionButton("Export log", HintCopy.EXPORT_LOG, showHoldHint, onExportLog)
-            HintActionButton("Share log", HintCopy.SHARE_LOG, showHoldHint, onShareLog)
-            HintActionButton("Export verbose log", HintCopy.EXPORT_VERBOSE, showHoldHint, onExportVerboseLog)
-            HintActionButton(
-                "Share export verbose log",
-                HintCopy.SHARE_VERBOSE,
+            ExportActionRow("Export Overwatches", HintCopy.EXPORT_OW, showHoldHint, onExportOverwatches, onShareOverwatches)
+            ExportActionRow("Export Settings", HintCopy.EXPORT_SETTINGS, showHoldHint, onExportSettings, onShareSettings)
+            ExportActionRow("Export Log", HintCopy.EXPORT_LOG, showHoldHint, onExportLog, onShareLog)
+            ExportActionRow(
+                "Export Verbose Log",
+                HintCopy.EXPORT_VERBOSE,
                 showHoldHint,
+                onExportVerboseLog,
                 onShareVerboseLog,
             )
+            HintActionButton("Import", HintCopy.IMPORT_OW, showHoldHint, onImport)
+            HintActionButton("Clear Overwatches", HintCopy.CLEAR_OW, showHoldHint) { clearConfirm = true }
         }
 
         CollapsibleSection(
@@ -623,41 +661,7 @@ fun SettingsScreen(
             )
         }
 
-        Button(
-            onClick = {
-                val hashed = if (!pinIsMask && pinText.length >= 4) PinHasher.hash(pinText) else draft.pinHash
-                val pinLen = if (!pinIsMask && pinText.length >= 4) {
-                    pinText.length.coerceIn(4, 8)
-                } else {
-                    draft.pinLength
-                }
-                val videoSec = clipSecondsText.toIntOrNull()?.coerceIn(3, 120) ?: draft.videoClipSeconds
-                val audioSec = audioClipText.toIntOrNull()?.coerceIn(3, 120) ?: draft.audioClipSeconds
-                val recent = recentLocText.toIntOrNull()?.coerceAtLeast(1) ?: draft.recentLocationMinutes
-                val recentPoints = recentPointsText.toIntOrNull()?.coerceIn(1, 20) ?: draft.recentLocationPoints
-                val cont = contLocText.toIntOrNull()?.coerceAtLeast(1) ?: draft.continuousLocationMinutes
-                val maxDur = maxDurText.toIntOrNull()?.coerceAtLeast(1) ?: draft.maxAlarmDurationMinutes
-                val maxSms = maxSmsText.toIntOrNull()?.coerceAtLeast(1) ?: draft.maxAlarmSms
-                val maxCalls = maxCallsText.toIntOrNull()?.coerceAtLeast(1) ?: draft.maxAlarmCalls
-                onSave(
-                    draft.copy(
-                        pinHash = hashed,
-                        pinLength = pinLen,
-                        videoClipSeconds = videoSec,
-                        audioClipSeconds = audioSec,
-                        recentLocationMinutes = recent,
-                        recentLocationPoints = recentPoints,
-                        continuousLocationMinutes = cont,
-                        maxAlarmDurationMinutes = maxDur,
-                        maxAlarmSms = maxSms,
-                        maxAlarmCalls = maxCalls,
-                        failSecretPhrase = draft.failSecretPhrase.trim().ifBlank { "Okay" },
-                    ),
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("Save") }
-        Spacer(Modifier.height(48.dp))
+        Spacer(Modifier.height(24.dp))
     }
     if (colourPicker != null) {
         val title = when (colourPicker) {
@@ -731,16 +735,57 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun SettingsActionRow(
+    label: String,
+    hint: String,
+    onHint: (String) -> Unit,
+    onClick: () -> Unit,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier
+                .weight(1f)
+                .holdHintOrClick(onClick = onClick, onHint = { onHint(hint) })
+                .padding(vertical = 8.dp),
+        )
+        trailing?.invoke()
+    }
+}
+
+@Composable
 private fun HintActionButton(
     label: String,
     hint: String,
     onHint: (String) -> Unit,
     onClick: () -> Unit,
 ) {
-    TextButton(
-        onClick = onClick,
-        modifier = Modifier.watchHoldHint { onHint(hint) },
-    ) { Text(label) }
+    SettingsActionRow(label, hint, onHint, onClick)
+}
+
+@Composable
+private fun ExportActionRow(
+    label: String,
+    hint: String,
+    onHint: (String) -> Unit,
+    onExport: () -> Unit,
+    onShare: () -> Unit,
+) {
+    SettingsActionRow(label, hint, onHint, onExport) {
+        IconButton(onClick = onShare) {
+            Icon(
+                Icons.Default.Share,
+                contentDescription = "Share $label",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+    }
 }
 
 @Composable

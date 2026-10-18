@@ -3,14 +3,6 @@ package com.grandsphere.overwatch.domain.catalog
 import android.content.Context
 import com.grandsphere.overwatch.domain.model.OverwatchConfig
 
-/**
- * Add a future Notify Mode cue:
- * 1. Create a file implementing [NotifyEffect]
- * 2. Append it to [NotifyCatalog.all]
- * 3. Declare extra permissions next to that object if needed
- *
- * Room stores [id], never an enum.
- */
 interface NotifyEffect {
     val id: String
     val label: String

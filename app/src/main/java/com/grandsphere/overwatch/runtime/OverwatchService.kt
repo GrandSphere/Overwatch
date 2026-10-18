@@ -59,7 +59,7 @@ class OverwatchService : Service() {
                     } else {
                         LiveCountdownNotifications.cancelAll(this@OverwatchService)
                         CheckInBubbles.cancel(this@OverwatchService)
-                        // Stay up until OverwatchService.stop() — Safety Mode may hold FGS after leave.
+                        // Stay up until OverwatchService.stop(); Safety Mode may hold FGS after leave.
                     }
                 } catch (t: Throwable) {
                     VerboseLog.fail("FGS", "tick", t)

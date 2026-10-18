@@ -4,7 +4,6 @@ import android.content.Intent
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 
-/** Quick Settings tile that triggers Panic (same path as the home Panic widget). */
 class PanicTileService : TileService() {
     override fun onStartListening() {
         qsTile?.apply {

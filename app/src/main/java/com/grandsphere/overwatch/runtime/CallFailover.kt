@@ -92,7 +92,7 @@ class CallFailover(
         else VerboseLog.fail("Call", "dial ${index + 1}/${numbers.size}", launched.exceptionOrNull())
         postFullScreenCall(number)
         if (canWatchState()) {
-            // Only if dial never leaves IDLE (failed to start) — not a connect timer.
+            // Only if dial never leaves IDLE (failed to start), not a connect timer.
             val wait = Runnable {
                 if (!sawInProgress) {
                     VerboseLog.d("Call", "dial never left IDLE; trying next")

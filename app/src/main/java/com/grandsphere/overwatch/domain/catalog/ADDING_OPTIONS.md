@@ -35,7 +35,7 @@ File: `AlarmCatalog.kt`
 2. Append it to `AlarmCatalog.all`.
 3. Add covert/conflict rules in `AlarmCatalog.conflicts` if needed.
 4. If it needs a runtime permission, add it in `FeaturePermissions.alarmPermissions` (asked when the user taps `+`, and again on Enable/Panic if the saved config already has it).
-5. Handle the id in `AlarmDispatcher.dispatch`. SMS uses `alarmSmsBody` and all contacts. Calls use `CallFailover` (next number if the first fails). `location` is a stub in `LocationSender` — do not request GPS until that is implemented.
+5. Handle the id in `AlarmDispatcher.dispatch`. SMS uses `alarmSmsBody` and all contacts. Calls use `CallFailover` (next number if the first fails). `location` is a stub in `LocationSender`; do not request GPS until that is implemented.
 
 ## After adding an option
 

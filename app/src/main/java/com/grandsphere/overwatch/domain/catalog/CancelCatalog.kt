@@ -1,9 +1,5 @@
 package com.grandsphere.overwatch.domain.catalog
 
-/**
- * Cancel Mode methods (multi-select like Dismiss).
- * [same_as_dismiss] expands to the config's dismissEffectIds at runtime.
- */
 interface CancelEffect {
     val id: String
     val label: String
@@ -65,7 +61,6 @@ object CancelCatalog {
         return bad
     }
 
-    /** Resolved proof ids (dismiss catalog ids), expanding [SAME_AS_DISMISS]. */
     fun resolvedProofIds(cancelEffectIds: Collection<String>, dismissEffectIds: Collection<String>): List<String> {
         if (SAME_AS_DISMISS in cancelEffectIds) return dismissEffectIds.toList()
         return cancelEffectIds.filter { it != SAME_AS_DISMISS && byId(it) != null }

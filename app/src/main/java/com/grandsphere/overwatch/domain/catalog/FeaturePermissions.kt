@@ -7,9 +7,6 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import com.grandsphere.overwatch.domain.model.OverwatchConfig
 
-/**
- * Runtime (dangerous) permissions only. Normal / special permissions are not prompted here.
- */
 object FeaturePermissions {
     fun notifyPermission(id: String): String? = when (id) {
         "notification", "live_notify", "bubble" -> postNotificationsOrNull()

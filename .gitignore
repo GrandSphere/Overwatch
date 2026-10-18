@@ -8,6 +8,9 @@ app/local.properties
 .DS_Store
 build/
 app/build/
+compile/
+release/
+source/
 captures/
 .externalNativeBuild/
 .cxx/

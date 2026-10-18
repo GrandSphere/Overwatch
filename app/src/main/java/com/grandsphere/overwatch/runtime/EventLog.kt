@@ -9,10 +9,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 object EventLog {
-    /**
-     * [effectIds] is the dispatch list (Alarm or Safety). When omitted, lifecycle lines
-     * use Alarm Log (or always-log).
-     */
     fun shouldWrite(
         context: Context,
         config: OverwatchConfig,

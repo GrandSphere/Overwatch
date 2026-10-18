@@ -20,10 +20,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-/**
- * Loops N-second clips to MediaStore while Alarm Mode is active.
- * Camera stays open across clips; each file is finalized with stop() before the fd is closed.
- */
 @Suppress("DEPRECATION")
 class ClipRecorder(
     private val context: Context,

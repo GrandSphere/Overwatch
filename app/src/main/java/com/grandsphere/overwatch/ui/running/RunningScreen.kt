@@ -150,7 +150,6 @@ fun RunningScreen(
         val wantCancelAuto = cancelProof && cancelUsesAutoFingerprint
         if (!wantDismissAuto && !wantCancelAuto) return@LaunchedEffect
 
-        // Immediate prompt on enter / fresh focus; then throttle.
         while (isActive) {
             if (!promptBusy && FingerprintAuth.canAuthenticate(context)) {
                 if (wantCancelAuto) {

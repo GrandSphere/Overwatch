@@ -18,11 +18,10 @@ import com.grandsphere.overwatch.domain.model.OverwatchConfig
 import com.grandsphere.overwatch.domain.model.RepeatKind
 import com.grandsphere.overwatch.domain.model.ShakeStrength
 import java.io.File
+import org.json.JSONArray
+import org.json.JSONObject
 
-/**
- * Repairs a **copy** of an imported SQLite file: drop unknown tables/columns,
- * add missing columns, coerce invalid values to current defaults.
- */
+// Imported SQLite copies are repaired here before any row is merged into Room.
 object ImportDatabaseValidator {
     private const val CONFIGS = "overwatch_configs"
     private const val META = "meta"
@@ -624,7 +623,7 @@ object ImportDatabaseValidator {
         return rows
     }
 
-    private fun OverwatchConfigEntity.toValues(): ContentValues = ContentValues().apply {
+    internal fun OverwatchConfigEntity.toValues(): ContentValues = ContentValues().apply {
         put("name", name)
         put("intervalMs", intervalMs)
         put("repeatKind", repeatKind)
@@ -739,6 +738,170 @@ object ImportDatabaseValidator {
 
     private inline fun <reified T : Enum<T>> enumOr(raw: String, default: T): T =
         runCatching { enumValueOf<T>(raw) }.getOrDefault(default)
+
+    fun sanitizeImported(raw: OverwatchConfigEntity): OverwatchConfigEntity =
+        sanitizeEntity(raw.copy(id = 0))
+
+    fun parseConfigsExchange(json: String): List<OverwatchConfigEntity> {
+        val root = JSONObject(json.trim())
+        if (root.optString("format") != OverwatchExchange.FORMAT_OVERWATCHES) {
+            error("Not an Overwatch export")
+        }
+        val arr = root.getJSONArray("configs")
+        return List(arr.length()) { i ->
+            sanitizeImported(readConfigFromJson(arr.getJSONObject(i)))
+        }
+    }
+
+    fun configsExchangeJson(configs: List<OverwatchConfig>): String {
+        val arr = JSONArray()
+        configs.forEach { cfg ->
+            arr.put(OverwatchConfigEntity.from(cfg).copy(id = 0).toExportJson())
+        }
+        return JSONObject().apply {
+            put("format", OverwatchExchange.FORMAT_OVERWATCHES)
+            put("version", 1)
+            put("configs", arr)
+        }.toString()
+    }
+
+    private fun readConfigFromJson(obj: JSONObject): OverwatchConfigEntity =
+        OverwatchConfigEntity(
+            id = 0,
+            name = obj.optionalString("name", "Imported"),
+            intervalMs = obj.optionalLong("intervalMs", 5 * 60_000L),
+            repeatKind = obj.optionalString("repeatKind", RepeatKind.SINGLE.name),
+            repeatCount = obj.optionalInt("repeatCount", 0),
+            windowMs = obj.optionalLong("windowMs", 0L),
+            checkInHour = obj.optionalInt("checkInHour", 15),
+            checkInMinute = obj.optionalInt("checkInMinute", 0),
+            covert = obj.bool01("covert"),
+            cancelMethod = obj.optionalString("cancelMethod", "CONFIRM"),
+            cancelEffectIds = obj.optionalString("cancelEffectIds"),
+            pinHash = obj.optionalNullableString("pinHash"),
+            graceDurationMs = obj.optionalLong("graceDurationMs", 60_000L),
+            notifyEffectIds = obj.optionalString("notifyEffectIds"),
+            dismissEffectIds = obj.optionalString("dismissEffectIds"),
+            graceNotifyEffectIds = obj.optionalString("graceNotifyEffectIds"),
+            graceDismissEffectIds = obj.optionalString("graceDismissEffectIds"),
+            alarmEffectIds = obj.optionalString("alarmEffectIds"),
+            contactNumbers = obj.optionalString("contactNumbers"),
+            smsContactNumbers = obj.optionalString("smsContactNumbers"),
+            callContactNumbers = obj.optionalString("callContactNumbers"),
+            alarmSmsBody = obj.optionalString("alarmSmsBody"),
+            notifySoundUri = obj.optionalString("notifySoundUri"),
+            notifySoundDurationMs = obj.optionalLong(
+                "notifySoundDurationMs",
+                OverwatchConfig.SOUND_UNTIL_DISMISSED,
+            ),
+            alarmSoundUri = obj.optionalString("alarmSoundUri"),
+            alarmSoundDurationMs = obj.optionalLong(
+                "alarmSoundDurationMs",
+                OverwatchConfig.SOUND_UNTIL_DISMISSED,
+            ),
+            dismissHardwareKey = obj.optionalString(
+                "dismissHardwareKey",
+                HardwareKeyOption.NONE.name,
+            ),
+            locationRecent = obj.bool01("locationRecent"),
+            locationContinuous = obj.bool01("locationContinuous"),
+            safetyEffectIds = obj.optionalString("safetyEffectIds"),
+            safetySmsBody = obj.optionalString("safetySmsBody"),
+            safetySmsContactNumbers = obj.optionalString("safetySmsContactNumbers"),
+            safetyCallContactNumbers = obj.optionalString("safetyCallContactNumbers"),
+            safetyLocationRecent = false,
+            safetyLocationContinuous = false,
+            safetyOnCancel = obj.bool01("safetyOnCancel"),
+            safetySoundUri = obj.optionalString("safetySoundUri"),
+            safetySoundDurationMs = obj.optionalLong("safetySoundDurationMs", 30_000L),
+            notifyFlickerOnMs = obj.optionalLong("notifyFlickerOnMs", 2_000L),
+            notifyFlickerOffMs = obj.optionalLong("notifyFlickerOffMs", 2_000L),
+            alarmFlickerOnMs = obj.optionalLong("alarmFlickerOnMs", 2_000L),
+            alarmFlickerOffMs = obj.optionalLong("alarmFlickerOffMs", 2_000L),
+            safetyFlickerOnMs = obj.optionalLong("safetyFlickerOnMs", 2_000L),
+            safetyFlickerOffMs = obj.optionalLong("safetyFlickerOffMs", 2_000L),
+            panicEffectIds = obj.optionalString("panicEffectIds", "none"),
+            panicPowerTaps = obj.optionalInt("panicPowerTaps", 3),
+            dismissPowerTaps = obj.optionalInt("dismissPowerTaps", obj.optionalInt("panicPowerTaps", 3)),
+            cancelPowerTaps = obj.optionalInt("cancelPowerTaps", obj.optionalInt("panicPowerTaps", 3)),
+            shakeStrength = obj.optionalString("shakeStrength", ShakeStrength.MEDIUM.name),
+            dismissShakeStrength = obj.optionalString(
+                "dismissShakeStrength",
+                obj.optionalString("shakeStrength", ShakeStrength.MEDIUM.name),
+            ),
+            cancelShakeStrength = obj.optionalString(
+                "cancelShakeStrength",
+                obj.optionalString("shakeStrength", ShakeStrength.MEDIUM.name),
+            ),
+            shakeCount = obj.optionalInt("shakeCount", 3),
+            dismissShakeCount = obj.optionalInt("dismissShakeCount", obj.optionalInt("shakeCount", 3)),
+            cancelShakeCount = obj.optionalInt("cancelShakeCount", obj.optionalInt("shakeCount", 3)),
+            crashThresholdG = obj.optionalCrashThresholdG(),
+            crashIgnoreMs = obj.optionalCrashIgnoreMs(),
+            crashStillnessMs = obj.optionalCrashStillnessMs(),
+            persistentPanicNotification = obj.bool01("persistentPanicNotification"),
+            liveNotifyShowName = obj.bool01("liveNotifyShowName"),
+            alarmNotificationBody = obj.optionalString("alarmNotificationBody"),
+            safetyNotificationBody = obj.optionalString("safetyNotificationBody"),
+            notifyNotificationBody = obj.optionalString("notifyNotificationBody"),
+            notifyNotificationUrgency = obj.optionalString(
+                "notifyNotificationUrgency",
+                NotificationUrgency.DEFAULT.name,
+            ),
+            notifyBubblePopup = obj.bool01("notifyBubblePopup"),
+            alarmNotificationUrgency = obj.optionalString(
+                "alarmNotificationUrgency",
+                NotificationUrgency.DEFAULT.name,
+            ),
+            safetyNotificationUrgency = obj.optionalString(
+                "safetyNotificationUrgency",
+                NotificationUrgency.DEFAULT.name,
+            ),
+            turnoverHoldMs = obj.optionalLong("turnoverHoldMs", 700L),
+            dismissTurnoverHoldMs = obj.optionalLong(
+                "dismissTurnoverHoldMs",
+                obj.optionalLong("turnoverHoldMs", 700L),
+            ),
+            cancelTurnoverHoldMs = obj.optionalLong(
+                "cancelTurnoverHoldMs",
+                obj.optionalLong("turnoverHoldMs", 700L),
+            ),
+            sendTriggerMode = obj.bool01("sendTriggerMode", default = true),
+            notifyVibrateDurationMs = obj.optionalLong("notifyVibrateDurationMs", 10_000L),
+            alarmVibrateDurationMs = obj.optionalLong(
+                "alarmVibrateDurationMs",
+                OverwatchConfig.SOUND_UNTIL_DISMISSED,
+            ),
+            safetyVibrateDurationMs = obj.optionalLong("safetyVibrateDurationMs", 10_000L),
+            notifyFlashlightDurationMs = obj.optionalLong("notifyFlashlightDurationMs", 5_000L),
+            alarmFlashlightDurationMs = obj.optionalLong(
+                "alarmFlashlightDurationMs",
+                OverwatchConfig.SOUND_UNTIL_DISMISSED,
+            ),
+            safetyFlashlightDurationMs = obj.optionalLong("safetyFlashlightDurationMs", 5_000L),
+            notifyFlashlightMode = obj.optionalString("notifyFlashlightMode", "steady"),
+            alarmFlashlightMode = obj.optionalString("alarmFlashlightMode", "steady"),
+            safetyFlashlightMode = obj.optionalString("safetyFlashlightMode", "steady"),
+        )
+
+    internal fun OverwatchConfigEntity.toExportJson(): JSONObject {
+        val j = JSONObject()
+        toValues().let { cv ->
+            for (key in cv.keySet()) {
+                when (val v = cv.get(key)) {
+                    null -> j.put(key, JSONObject.NULL)
+                    is String -> j.put(key, v)
+                    is Int -> j.put(key, v)
+                    is Long -> j.put(key, v)
+                    is Float -> j.put(key, v.toDouble())
+                    is Double -> j.put(key, v)
+                    is Boolean -> j.put(key, v)
+                    else -> j.put(key, v.toString())
+                }
+            }
+        }
+        return j
+    }
 }
 
 private fun Cursor.optionalString(name: String, default: String = ""): String {
@@ -801,4 +964,63 @@ private fun Cursor.bool01(name: String, default: Boolean = false): Boolean {
     val i = getColumnIndex(name)
     if (i < 0 || isNull(i)) return default
     return getInt(i) == 1
+}
+
+private fun JSONObject.optionalString(name: String, default: String = ""): String {
+    if (!has(name) || isNull(name)) return default
+    return optString(name, default)
+}
+
+private fun JSONObject.optionalNullableString(name: String): String? {
+    if (!has(name) || isNull(name)) return null
+    return optString(name)?.takeIf { it.isNotBlank() }
+}
+
+private fun JSONObject.optionalInt(name: String, default: Int): Int {
+    if (!has(name) || isNull(name)) return default
+    return optInt(name, default)
+}
+
+private fun JSONObject.optionalLong(name: String, default: Long): Long {
+    if (!has(name) || isNull(name)) return default
+    return optLong(name, default)
+}
+
+private fun JSONObject.bool01(name: String, default: Boolean = false): Boolean {
+    if (!has(name) || isNull(name)) return default
+    return when (val v = opt(name)) {
+        is Boolean -> v
+        is Number -> v.toInt() == 1
+        is String -> v == "1" || v.equals("true", ignoreCase = true)
+        else -> default
+    }
+}
+
+private fun JSONObject.optionalCrashThresholdG(): Float {
+    if (has("crashThresholdG") && !isNull("crashThresholdG")) {
+        return optDouble("crashThresholdG").toFloat().coerceIn(1f, 16f)
+    }
+    return when (optionalString("crashSensitivity", CrashSensitivity.MEDIUM.name)) {
+        CrashSensitivity.HIGH.name -> CrashSensitivity.HIGH.thresholdG
+        CrashSensitivity.LOW.name -> CrashSensitivity.LOW.thresholdG
+        else -> CrashSensitivity.MEDIUM.thresholdG
+    }
+}
+
+private fun JSONObject.optionalCrashIgnoreMs(): Long {
+    if (has("crashIgnoreMs") && !isNull("crashIgnoreMs")) {
+        return optLong("crashIgnoreMs").coerceAtLeast(0L)
+    }
+    return 5_000L
+}
+
+private fun JSONObject.optionalCrashStillnessMs(): Long {
+    if (has("crashStillnessMs") && !isNull("crashStillnessMs")) {
+        return optLong("crashStillnessMs").coerceAtLeast(1_000L)
+    }
+    return when (optionalString("crashSensitivity", CrashSensitivity.MEDIUM.name)) {
+        CrashSensitivity.HIGH.name -> CrashSensitivity.HIGH.defaultStillnessMs
+        CrashSensitivity.LOW.name -> CrashSensitivity.LOW.defaultStillnessMs
+        else -> CrashSensitivity.MEDIUM.defaultStillnessMs
+    }
 }

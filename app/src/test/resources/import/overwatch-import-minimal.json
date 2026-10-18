@@ -1,0 +1,11 @@
+{
+  "format": "overwatch-overwatches",
+  "version": 1,
+  "configs": [
+    {
+      "name": "Import Test Solo",
+      "intervalMs": 300000,
+      "repeatKind": "SINGLE"
+    }
+  ]
+}

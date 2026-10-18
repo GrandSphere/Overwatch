@@ -24,7 +24,6 @@ data class OverwatchConfigEntity(
     val checkInHour: Int = 15,
     val checkInMinute: Int = 0,
     val covert: Boolean,
-    /** Legacy column kept for import; prefer [cancelEffectIds]. */
     val cancelMethod: String = "CONFIRM",
     val cancelEffectIds: String = "",
     val pinHash: String?,

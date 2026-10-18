@@ -3,7 +3,6 @@ package com.grandsphere.overwatch.runtime
 import android.content.Context
 import com.grandsphere.overwatch.OverwatchApp
 
-/** Tracks outbound SMS/call counts for the current Alarm (and optional Safety) run. */
 object OutboundCaps {
     @Volatile
     private var smsSent = 0

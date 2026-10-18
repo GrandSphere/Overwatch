@@ -9,11 +9,6 @@ import com.grandsphere.overwatch.domain.model.OverwatchConfig
 import com.grandsphere.overwatch.domain.model.Submode
 import java.util.Calendar
 
-/**
- * Best-effort handoff to the system Clock app. No AccessibilityService.
- * SET is public; dismiss is not reliable across OEMs.
- * Clock only accepts hour+minute; we round up to the next minute.
- */
 object ClockAlarm {
     private const val LABEL = "Overwatch"
 

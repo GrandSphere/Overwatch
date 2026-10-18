@@ -1,9 +1,5 @@
 package com.grandsphere.overwatch.domain.catalog
 
-/**
- * Per-Overwatch Panic Mode options (editor). Settings Panic hardware keys are separate.
- * Room stores string ids.
- */
 interface PanicModeEffect {
     val id: String
     val label: String

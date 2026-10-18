@@ -1,0 +1,17 @@
+{
+  "format": "overwatch-overwatches",
+  "version": 1,
+  "configs": [
+    {
+      "name": "Import Test Alpha",
+      "intervalMs": 300000,
+      "repeatKind": "SINGLE"
+    },
+    {
+      "name": "Import Test Beta",
+      "intervalMs": 600000,
+      "repeatKind": "COUNT",
+      "repeatCount": 3
+    }
+  ]
+}

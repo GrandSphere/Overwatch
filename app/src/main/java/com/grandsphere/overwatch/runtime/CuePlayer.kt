@@ -77,7 +77,6 @@ class CuePlayer(private val context: Context) {
         flashlight(false, log = false)
     }
 
-    /** Stops siren/sound only. Torch, SOS, and recording keep running. */
     fun pauseSiren() {
         stopSound()
     }

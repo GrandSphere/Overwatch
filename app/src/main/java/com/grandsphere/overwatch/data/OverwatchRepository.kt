@@ -3,7 +3,6 @@ package com.grandsphere.overwatch.data
 import android.content.Context
 import android.net.Uri
 import androidx.room.withTransaction
-import androidx.sqlite.db.SimpleSQLiteQuery
 import com.grandsphere.overwatch.data.db.AlarmLogEntity
 import com.grandsphere.overwatch.data.db.MetaEntity
 import com.grandsphere.overwatch.data.db.OverwatchConfigEntity
@@ -106,35 +105,23 @@ class OverwatchRepository(
         dao.listLog(limit).map { AlarmLogEntry(it.id, it.atEpochMs, it.configName, it.message) }
 
 
-    /**
-     * Export configs only (no alarm log) as a shareable SQLite file.
-     */
-    suspend fun exportConfigsDb(): File {
+    suspend fun exportOverwatchesJson(): String =
+        OverwatchExchange.overwatchesJson(list())
+
+    suspend fun insertImportedConfigs(configs: List<OverwatchConfig>) {
+        if (configs.isEmpty()) return
         db.withTransaction {
-            dao.putMeta(MetaEntity(OverwatchDatabase.SCHEMA_VERSION_KEY, OverwatchDatabase.SCHEMA_VERSION))
+            for (cfg in configs) {
+                dao.insert(OverwatchConfigEntity.from(cfg.copy(id = 0)))
+            }
         }
-        db.query(SimpleSQLiteQuery("PRAGMA wal_checkpoint(FULL)")).close()
-        val src = context.getDatabasePath(OverwatchDatabase.NAME)
-        val dest = File(context.cacheDir, "overwatch-export.db")
-        src.copyTo(dest, overwrite = true)
-        return dest
+        ensureDefault()
+        com.grandsphere.overwatch.widget.refreshOverwatchWidgets(context)
     }
 
-    suspend fun importConfigs(uri: Uri) {
-        val tmp = File(context.cacheDir, "overwatch-import.db")
+    suspend fun readTextFromUri(uri: Uri): String {
         context.contentResolver.openInputStream(uri)?.use { input ->
-            tmp.outputStream().use { output -> input.copyTo(output) }
+            return input.readBytes().toString(Charsets.UTF_8)
         } ?: error("Could not read import")
-        try {
-            val rows = ImportDatabaseValidator.sanitizeAndRead(tmp)
-            db.withTransaction {
-                dao.deleteAllConfigs()
-                for (row in rows) dao.insert(row)
-            }
-            ensureDefault()
-        } finally {
-            tmp.delete()
-        }
-        com.grandsphere.overwatch.widget.refreshOverwatchWidgets(context)
     }
 }

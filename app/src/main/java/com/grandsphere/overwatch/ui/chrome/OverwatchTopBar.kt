@@ -1,9 +1,11 @@
 package com.grandsphere.overwatch.ui.chrome
 
 import android.view.accessibility.AccessibilityManager
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,7 +16,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -32,10 +33,34 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.grandsphere.overwatch.domain.model.PanicActivation
 
-/**
- * Panic stays far right. Status-bar inset is applied by [com.grandsphere.overwatch.ui.OverwatchRoot]
- * so these controls are never drawn under the system clock.
- */
+@Composable
+fun TopBarActionLabel(label: String, modifier: Modifier = Modifier) {
+    Text(
+        text = label,
+        color = MaterialTheme.colorScheme.onSecondaryContainer,
+        fontSize = 15.sp,
+        modifier = modifier,
+    )
+}
+
+@Composable
+fun TopBarTextAction(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    TopBarActionLabel(
+        label = label,
+        modifier = modifier
+            .semantics {
+                role = Role.Button
+                contentDescription = label
+            }
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    )
+}
+
 @Composable
 fun OverwatchTopBar(
     title: String,
@@ -44,6 +69,7 @@ fun OverwatchTopBar(
     panicActivation: PanicActivation,
     onPanic: () -> Unit,
     navigation: @Composable () -> Unit = {},
+    actions: @Composable RowScope.() -> Unit = {},
 ) {
     var lastTap by remember { mutableLongStateOf(0L) }
     val context = LocalContext.current
@@ -71,8 +97,9 @@ fun OverwatchTopBar(
             modifier = Modifier.padding(start = 8.dp),
         )
         Spacer(Modifier.weight(1f))
+        actions()
         if (talkBack) {
-            TextButton(onClick = onPanic) { Text("Panic") }
+            TopBarTextAction("Panic", onClick = onPanic, modifier = Modifier.padding(end = 8.dp))
         } else {
             Box(
                 Modifier
@@ -105,7 +132,7 @@ fun OverwatchTopBar(
                     }
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
-                Text("Panic", color = MaterialTheme.colorScheme.primary, fontSize = 15.sp)
+                TopBarActionLabel("Panic")
             }
         }
     }

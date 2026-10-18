@@ -55,7 +55,7 @@ jobs:
           } > keystore.properties
 
       - name: Assemble release
-        run: chmod +x gradlew && ./gradlew assembleRelease --stacktrace
+        run: chmod +x scripts/gradlew && ./scripts/gradlew assembleRelease --stacktrace
 
       - name: Read versionName
         id: version

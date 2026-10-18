@@ -5,13 +5,16 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.core.content.IntentCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.grandsphere.overwatch.OverwatchApp
+import com.grandsphere.overwatch.data.OverwatchExchange
 import com.grandsphere.overwatch.data.OverwatchRepository
 import com.grandsphere.overwatch.data.SettingsExport
+import com.grandsphere.overwatch.ui.import.OverwatchImportLine
 import com.grandsphere.overwatch.data.SettingsStore
 import com.grandsphere.overwatch.data.db.SeedConfigs
 import com.grandsphere.overwatch.domain.engine.OverwatchEngine
@@ -55,6 +58,14 @@ class MainViewModel(
 
     private val _draft = MutableStateFlow<OverwatchConfig?>(null)
     val draft: StateFlow<OverwatchConfig?> = _draft.asStateFlow()
+
+    private val _overwatchImportLines = MutableStateFlow<List<OverwatchImportLine>?>(null)
+    val overwatchImportLines: StateFlow<List<OverwatchImportLine>?> = _overwatchImportLines.asStateFlow()
+
+    private val _overwatchImportError = MutableStateFlow<String?>(null)
+    val overwatchImportError: StateFlow<String?> = _overwatchImportError.asStateFlow()
+
+    private var pendingImportConfigs: List<OverwatchConfig> = emptyList()
 
     fun openDetail(id: Long) {
         _nav.value = Nav.Detail(id)
@@ -150,6 +161,105 @@ class MainViewModel(
         }
     }
 
+    fun duplicateConfig(config: OverwatchConfig) {
+        if (config.isDefault()) return
+        viewModelScope.launch {
+            val taken = repository.list().map { it.name }.toSet()
+            val name = OverwatchExchange.uniqueTempName(taken)
+            val source = repository.get(config.id) ?: return@launch
+            _draft.value = source.copy(id = 0, name = name)
+            _nav.value = Nav.Editor(null)
+        }
+    }
+
+    fun shareOverwatch(context: Context, config: OverwatchConfig) {
+        viewModelScope.launch {
+            runCatching {
+                shareJsonText(
+                    context,
+                    OverwatchExchange.overwatchesJson(listOf(config)),
+                    "overwatch-${config.name}.json",
+                    "Share Overwatch",
+                )
+            }.onFailure {
+                Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun updateOverwatchImportLine(key: Int, line: OverwatchImportLine) {
+        val current = _overwatchImportLines.value ?: return
+        _overwatchImportLines.value = current.map { if (it.key == key) line else it }
+        _overwatchImportError.value = null
+    }
+
+    fun dismissOverwatchImport() {
+        _overwatchImportLines.value = null
+        _overwatchImportError.value = null
+        pendingImportConfigs = emptyList()
+    }
+
+    fun confirmOverwatchImport(context: Context) {
+        val lines = _overwatchImportLines.value ?: return
+        viewModelScope.launch {
+            val existing = repository.list().map { it.name }.toSet()
+            val selected = lines.filter { it.selected }
+            if (selected.isEmpty()) {
+                _overwatchImportError.value = "Select at least one Overwatch."
+                return@launch
+            }
+            val names = mutableSetOf<String>()
+            for (line in selected) {
+                val trimmed = line.name.trim()
+                if (trimmed.isBlank()) {
+                    _overwatchImportError.value = "Every selected Overwatch needs a name."
+                    return@launch
+                }
+                if (trimmed in existing) {
+                    _overwatchImportError.value = "\"$trimmed\" already exists. Choose another name."
+                    return@launch
+                }
+                if (trimmed in names) {
+                    _overwatchImportError.value = "Duplicate name \"$trimmed\" in import."
+                    return@launch
+                }
+                names += trimmed
+            }
+            val byKey = pendingImportConfigs.withIndex().associate { (i, c) -> i to c }
+            val toInsert = selected.mapNotNull { line ->
+                byKey[line.key]?.copy(name = line.name.trim(), id = 0)
+            }
+            repository.insertImportedConfigs(toInsert)
+            dismissOverwatchImport()
+            Toast.makeText(context, "Imported", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun beginOverwatchImport(configs: List<OverwatchConfig>) {
+        pendingImportConfigs = configs
+        viewModelScope.launch {
+            val existing = repository.list().map { it.name }.toSet()
+            val reserved = existing.toMutableSet()
+            val lines = configs.mapIndexed { index, cfg ->
+                val conflict = cfg.name in existing
+                val name = if (conflict) {
+                    OverwatchExchange.uniqueTempName(reserved).also { reserved += it }
+                } else {
+                    cfg.name
+                }
+                OverwatchImportLine(
+                    key = index,
+                    originalName = cfg.name,
+                    selected = true,
+                    name = name,
+                    needsRename = conflict,
+                )
+            }
+            _overwatchImportLines.value = lines
+            _overwatchImportError.value = null
+        }
+    }
+
     fun clearOverwatches() {
         viewModelScope.launch {
             repository.clearOverwatchesKeepDefault()
@@ -161,9 +271,9 @@ class MainViewModel(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    val file = repository.exportConfigsDb()
+                    val json = repository.exportOverwatchesJson()
                     context.contentResolver.openOutputStream(uri)?.use { out ->
-                        file.inputStream().use { it.copyTo(out) }
+                        out.write(json.toByteArray(StandardCharsets.UTF_8))
                     } ?: error("Could not write export")
                 }
             }.onSuccess {
@@ -181,20 +291,11 @@ class MainViewModel(
         }
     }
 
-    fun exportDb(context: Context) {
+    fun shareOverwatchesExport(context: Context) {
         viewModelScope.launch {
             runCatching {
-                val uri = withContext(Dispatchers.IO) {
-                    val file = repository.exportConfigsDb()
-                    FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-                }
-                val send = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/octet-stream"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    clipData = ClipData.newRawUri("export", uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                context.startActivity(Intent.createChooser(send, "Share export"))
+                val json = repository.exportOverwatchesJson()
+                shareJsonText(context, json, OverwatchExchange.FILE_OVERWATCHES, "Share Overwatches")
             }.onFailure {
                 Toast.makeText(context, "Share export failed", Toast.LENGTH_SHORT).show()
             }
@@ -204,18 +305,12 @@ class MainViewModel(
     fun shareLog(context: Context) {
         viewModelScope.launch {
             runCatching {
-                val uri = withContext(Dispatchers.IO) {
+                withContext(Dispatchers.IO) {
                     val file = repository.ensureUserLogShareable()
                         ?: error("No log file")
-                    FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+                    val json = OverwatchExchange.logJson(file.readText())
+                    shareJsonText(context, json, "overwatch-log.json", "Share log")
                 }
-                val send = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    clipData = ClipData.newRawUri("log", uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                context.startActivity(Intent.createChooser(send, "Share log"))
             }.onFailure {
                 Toast.makeText(context, "Share log failed", Toast.LENGTH_SHORT).show()
             }
@@ -228,8 +323,10 @@ class MainViewModel(
                 withContext(Dispatchers.IO) {
                     val file = repository.ensureUserLogShareable()
                         ?: error("No log file")
+                    val text = file.readText()
+                    val json = OverwatchExchange.logJson(text)
                     context.contentResolver.openOutputStream(uri)?.use { out ->
-                        file.inputStream().use { it.copyTo(out) }
+                        out.write(json.toByteArray(StandardCharsets.UTF_8))
                     } ?: error("Could not write log")
                 }
             }.onSuccess {
@@ -246,8 +343,9 @@ class MainViewModel(
                 withContext(Dispatchers.IO) {
                     val file = com.grandsphere.overwatch.runtime.VerboseLog.ensureShareableCopy(context)
                         ?: error("No verbose log")
+                    val json = OverwatchExchange.verboseLogJson(file.readText())
                     context.contentResolver.openOutputStream(uri)?.use { out ->
-                        file.inputStream().use { it.copyTo(out) }
+                        out.write(json.toByteArray(StandardCharsets.UTF_8))
                     } ?: error("Could not write verbose log")
                 }
             }.onSuccess {
@@ -261,30 +359,100 @@ class MainViewModel(
     fun shareVerboseLog(context: Context) {
         viewModelScope.launch {
             runCatching {
-                val uri = withContext(Dispatchers.IO) {
+                withContext(Dispatchers.IO) {
                     val file = com.grandsphere.overwatch.runtime.VerboseLog.ensureShareableCopy(context)
                         ?: error("No verbose log")
-                    FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+                    val json = OverwatchExchange.verboseLogJson(file.readText())
+                    shareJsonText(context, json, "overwatch-verbose-log.json", "Share verbose log")
                 }
-                val send = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    clipData = ClipData.newRawUri("verbose-log", uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                context.startActivity(Intent.createChooser(send, "Share export verbose log"))
             }.onFailure {
                 Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    fun importDb(context: Context, uri: Uri) {
+    fun importExchange(context: Context, uri: Uri) {
         viewModelScope.launch {
-            runCatching { repository.importConfigs(uri) }
-                .onFailure {
-                    Toast.makeText(context, "Import failed", Toast.LENGTH_SHORT).show()
+            runCatching {
+                val json = withContext(Dispatchers.IO) { repository.readTextFromUri(uri) }
+                importExchangeJson(context, json)
+            }.onFailure {
+                Toast.makeText(context, "Import failed", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun importExchangeJson(context: Context, json: String) {
+        viewModelScope.launch {
+            runCatching {
+                when (OverwatchExchange.detectFormat(json)) {
+                    OverwatchExchange.FORMAT_OVERWATCHES -> {
+                        beginOverwatchImport(OverwatchExchange.parseOverwatches(json))
+                    }
+                    SettingsExport.FORMAT -> {
+                        withContext(Dispatchers.IO) {
+                            val merged = SettingsExport.merge(
+                                current = settingsStore.settings.first(),
+                                json = json,
+                                knownConfigIds = repository.list().map { it.id }.toSet(),
+                            )
+                            settingsStore.update { merged }
+                        }
+                        refreshOverwatchWidgets(context)
+                        Toast.makeText(context, "Settings imported", Toast.LENGTH_SHORT).show()
+                    }
+                    OverwatchExchange.FORMAT_LOG -> {
+                        withContext(Dispatchers.IO) {
+                            val text = OverwatchExchange.parseLogText(json)
+                            com.grandsphere.overwatch.runtime.DocumentsLog.appendRaw(context, text)
+                        }
+                        Toast.makeText(context, "Log imported", Toast.LENGTH_SHORT).show()
+                    }
+                    OverwatchExchange.FORMAT_VERBOSE_LOG -> {
+                        withContext(Dispatchers.IO) {
+                            val text = OverwatchExchange.parseVerboseLogText(json)
+                            com.grandsphere.overwatch.runtime.VerboseLog.importText(context, text)
+                        }
+                        Toast.makeText(context, "Verbose log imported", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> error("Unrecognized export")
                 }
+            }.onFailure {
+                Toast.makeText(context, "Import failed", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun handleIncomingShare(context: Context, intent: Intent?) {
+        if (intent == null) return
+        when (intent.action) {
+            Intent.ACTION_SEND -> {
+                val type = intent.type ?: return
+                viewModelScope.launch {
+                    runCatching {
+                        when {
+                            type.startsWith("text/") -> {
+                                val text = intent.getStringExtra(Intent.EXTRA_TEXT)?.trim()
+                                    ?: return@launch
+                                importExchangeJson(context, text)
+                            }
+                            else -> {
+                                val uri = IntentCompat.getParcelableExtra(
+                                    intent,
+                                    Intent.EXTRA_STREAM,
+                                    Uri::class.java,
+                                ) ?: return@launch
+                                val json = withContext(Dispatchers.IO) {
+                                    repository.readTextFromUri(uri)
+                                }
+                                importExchangeJson(context, json)
+                            }
+                        }
+                    }.onFailure {
+                        Toast.makeText(context, "Import failed", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         }
     }
 
@@ -308,50 +476,32 @@ class MainViewModel(
     fun shareSettings(context: Context) {
         viewModelScope.launch {
             runCatching {
-                val shareUri = withContext(Dispatchers.IO) {
-                    val file = File(context.cacheDir, SettingsExport.FILE_NAME)
-                    file.writeText(SettingsExport.toJson(settingsStore.settings.first()))
-                    FileProvider.getUriForFile(context, "${context.packageName}.files", file)
-                }
-                val send = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/json"
-                    putExtra(Intent.EXTRA_STREAM, shareUri)
-                    clipData = ClipData.newRawUri("settings", shareUri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-                context.startActivity(Intent.createChooser(send, "Share export settings"))
+                val json = SettingsExport.toJson(settingsStore.settings.first())
+                shareJsonText(context, json, SettingsExport.FILE_NAME, "Share settings")
             }.onFailure {
                 Toast.makeText(context, "Share settings failed", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    fun importSettings(context: Context, uri: Uri) {
-        viewModelScope.launch {
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    val tmp = File(context.cacheDir, "overwatch-settings-import.json")
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        tmp.outputStream().use { output -> input.copyTo(output) }
-                    } ?: error("Could not read settings import")
-                    try {
-                        val merged = SettingsExport.merge(
-                            current = settingsStore.settings.first(),
-                            json = tmp.readText(),
-                            knownConfigIds = repository.list().map { it.id }.toSet(),
-                        )
-                        settingsStore.update { merged }
-                    } finally {
-                        tmp.delete()
-                    }
-                }
-                refreshOverwatchWidgets(context)
-            }.onSuccess {
-                Toast.makeText(context, "Settings imported", Toast.LENGTH_SHORT).show()
-            }.onFailure {
-                Toast.makeText(context, "Settings import failed", Toast.LENGTH_SHORT).show()
-            }
+    private suspend fun shareJsonText(
+        context: Context,
+        json: String,
+        fileName: String,
+        chooserTitle: String,
+    ) {
+        val shareUri = withContext(Dispatchers.IO) {
+            val file = File(context.cacheDir, fileName)
+            file.writeText(json)
+            FileProvider.getUriForFile(context, "${context.packageName}.files", file)
         }
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "application/json"
+            putExtra(Intent.EXTRA_STREAM, shareUri)
+            clipData = ClipData.newRawUri("export", shareUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(send, chooserTitle))
     }
 
     companion object {

@@ -12,13 +12,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -28,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import android.graphics.Color as AndroidColor
 
@@ -46,7 +51,18 @@ fun ColorPickerDialog(
     var hue by remember { mutableFloatStateOf(hsv[0]) }
     var sat by remember { mutableFloatStateOf(hsv[1]) }
     var value by remember { mutableFloatStateOf(hsv[2]) }
-    val current = Color(AndroidColor.HSVToColor(floatArrayOf(hue, sat, value)))
+    var hexText by remember(initialArgb) {
+        mutableStateOf(argbToHex(initialArgb))
+    }
+    var hexFromWheel by remember { mutableStateOf(true) }
+
+    val currentArgb = Color(AndroidColor.HSVToColor(floatArrayOf(hue, sat, value))).toArgb()
+
+    LaunchedEffect(hue, sat, value) {
+        if (hexFromWheel) {
+            hexText = argbToHex(currentArgb)
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -57,7 +73,7 @@ fun ColorPickerDialog(
                     Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(current)
+                        .background(Color(currentArgb))
                         .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
                 )
                 Spacer(Modifier.height(12.dp))
@@ -66,21 +82,68 @@ fun ColorPickerDialog(
                     saturation = sat,
                     value = value,
                     onChange = { s, v ->
+                        hexFromWheel = true
                         sat = s
                         value = v
                     },
                 )
                 Spacer(Modifier.height(12.dp))
-                HueBar(hue = hue, onHue = { hue = it })
+                HueBar(
+                    hue = hue,
+                    onHue = {
+                        hexFromWheel = true
+                        hue = it
+                    },
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = hexText,
+                    onValueChange = { raw ->
+                        hexFromWheel = false
+                        val trimmed = raw.trim()
+                        hexText = trimmed
+                        parseHexArgb(trimmed)?.let { argb ->
+                            val out = FloatArray(3)
+                            AndroidColor.colorToHSV(argb, out)
+                            hue = out[0]
+                            sat = out[1]
+                            value = out[2]
+                            hexFromWheel = true
+                        }
+                    },
+                    label = { Text("Hex colour") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(current.toArgb()) }) { Text("OK") }
+            TextButton(onClick = {
+                val argb = parseHexArgb(hexText) ?: currentArgb
+                onConfirm(argb)
+            }) { Text("OK") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
     )
+}
+
+private fun argbToHex(argb: Int): String {
+    val rgb = argb and 0xFFFFFF
+    return "#%06X".format(rgb)
+}
+
+private fun parseHexArgb(raw: String): Int? {
+    val s = raw.trim().removePrefix("#")
+    if (s.length != 6 && s.length != 8) return null
+    val value = s.toLongOrNull(16) ?: return null
+    return if (s.length == 8) {
+        value.toInt()
+    } else {
+        (0xFF000000 or value).toInt()
+    }
 }
 
 @Composable
@@ -117,7 +180,12 @@ private fun SvSquare(
         val cx = saturation * size.width
         val cy = (1f - value) * size.height
         drawCircle(Color.White, radius = 8.dp.toPx(), center = Offset(cx, cy))
-        drawCircle(Color.Black, radius = 8.dp.toPx(), center = Offset(cx, cy), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()))
+        drawCircle(
+            Color.Black,
+            radius = 8.dp.toPx(),
+            center = Offset(cx, cy),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx()),
+        )
     }
 }
 

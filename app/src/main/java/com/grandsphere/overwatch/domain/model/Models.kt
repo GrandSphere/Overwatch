@@ -39,7 +39,6 @@ enum class NotificationUrgency {
     HIGH,
 }
 
-/** Crash / fall detect presets (g thresholds). Custom g values are also allowed. */
 enum class CrashSensitivity {
     HIGH,
     MEDIUM,
@@ -85,16 +84,13 @@ data class OverwatchConfig(
     val graceNotifyEffectIds: List<String> = emptyList(),
     val graceDismissEffectIds: List<String> = emptyList(),
     val alarmEffectIds: List<String> = emptyList(),
-    /** Legacy shared list; prefer [smsContactNumbers] / [callContactNumbers]. */
     val contactNumbers: String = "",
     val smsContactNumbers: String = "",
     val callContactNumbers: String = "",
     val alarmSmsBody: String = "",
     val notifySoundUri: String = "",
-    /** Notify cue sound length; [SOUND_UNTIL_DISMISSED] keeps looping until halt. */
     val notifySoundDurationMs: Long = SOUND_UNTIL_DISMISSED,
     val alarmSoundUri: String = "",
-    /** Alarm sound length; [SOUND_UNTIL_DISMISSED] keeps looping until halt. */
     val alarmSoundDurationMs: Long = SOUND_UNTIL_DISMISSED,
     val dismissHardwareKey: HardwareKeyOption = HardwareKeyOption.NONE,
     val locationRecent: Boolean = false,
@@ -107,7 +103,6 @@ data class OverwatchConfig(
     val safetyLocationContinuous: Boolean = false,
     val safetyOnCancel: Boolean = false,
     val safetySoundUri: String = "",
-    /** Safety sound length; must be a positive duration (no until-dismissed). */
     val safetySoundDurationMs: Long = 30_000L,
     val notifyFlickerOnMs: Long = 2_000L,
     val notifyFlickerOffMs: Long = 2_000L,
@@ -115,7 +110,6 @@ data class OverwatchConfig(
     val alarmFlickerOffMs: Long = 2_000L,
     val safetyFlickerOnMs: Long = 2_000L,
     val safetyFlickerOffMs: Long = 2_000L,
-    /** Panic Mode effect ids; default [none]. */
     val panicEffectIds: List<String> = listOf("none"),
     val panicPowerTaps: Int = 3,
     val dismissPowerTaps: Int = 3,
@@ -126,11 +120,8 @@ data class OverwatchConfig(
     val shakeCount: Int = 3,
     val dismissShakeCount: Int = 3,
     val cancelShakeCount: Int = 3,
-    /** Crash Detect absolute spike threshold in g (Medium preset = 10). */
     val crashThresholdG: Float = 10f,
-    /** Ignore movement this long after a jolt before stillness is required (default 5s). */
     val crashIgnoreMs: Long = 5_000L,
-    /** How long must stay nearly still after ignore (Medium preset = 50s). */
     val crashStillnessMs: Long = 50_000L,
     val persistentPanicNotification: Boolean = false,
     val liveNotifyShowName: Boolean = false,
@@ -138,15 +129,12 @@ data class OverwatchConfig(
     val safetyNotificationBody: String = "",
     val notifyNotificationBody: String = "",
     val notifyNotificationUrgency: NotificationUrgency = NotificationUrgency.DEFAULT,
-    /** Floating check-in bubble while this Overwatch is running (requires Notification). */
     val notifyBubblePopup: Boolean = false,
     val alarmNotificationUrgency: NotificationUrgency = NotificationUrgency.DEFAULT,
     val safetyNotificationUrgency: NotificationUrgency = NotificationUrgency.DEFAULT,
-    /** Face-down hold before turnover triggers (default 700 ms). Panic / Dismiss / Cancel each have their own. */
     val turnoverHoldMs: Long = 700L,
     val dismissTurnoverHoldMs: Long = 700L,
     val cancelTurnoverHoldMs: Long = 700L,
-    /** When true, SMS alarm payloads include trigger diagnostics. Log always includes them. */
     val sendTriggerMode: Boolean = true,
     val notifyVibrateDurationMs: Long = 10_000L,
     val alarmVibrateDurationMs: Long = SOUND_UNTIL_DISMISSED,
@@ -154,7 +142,6 @@ data class OverwatchConfig(
     val notifyFlashlightDurationMs: Long = 5_000L,
     val alarmFlashlightDurationMs: Long = SOUND_UNTIL_DISMISSED,
     val safetyFlashlightDurationMs: Long = 5_000L,
-    /** steady | flicker | sos */
     val notifyFlashlightMode: String = FLASHLIGHT_STEADY,
     val alarmFlashlightMode: String = FLASHLIGHT_STEADY,
     val safetyFlashlightMode: String = FLASHLIGHT_STEADY,
@@ -197,7 +184,6 @@ data class OverwatchConfig(
 
     companion object {
         const val DEFAULT_NAME = "Default"
-        /** Loop alarm sound until Alarm/Safety is halted. */
         const val SOUND_UNTIL_DISMISSED = -1L
         const val FLASHLIGHT_STEADY = "steady"
         const val FLASHLIGHT_FLICKER = "flicker"
@@ -318,15 +304,10 @@ sealed class AppState {
         val graceDeadlineElapsedMs: Long? = null,
         val enteredAlarmThisRun: Boolean = false,
         val secretAlarm: Boolean = false,
-        /** Shade obfuscation for this run (Hide action / panic). */
         val notificationHidden: Boolean = false,
-        /** Wall-clock when this run was enabled. */
         val enabledAtEpochMs: Long = 0L,
-        /** Wall-clock when Alarm Mode started (0 if not yet). */
         val alarmAtEpochMs: Long = 0L,
-        /** Human-readable trigger line, e.g. Panic, Crash Detect / No check-in. */
         val alarmTriggerLabel: String = "",
-        /** Wall-clock of most recent successful check-in this run (0 if none). */
         val lastCheckInAtEpochMs: Long = 0L,
     ) : AppState()
 }
@@ -350,7 +331,6 @@ data class AppSettings(
     val lightTheme: Boolean = false,
     val batteryPrompted: Boolean = false,
     val pinHash: String = "",
-    /** Digit count of the stored PIN; 0 means unknown (legacy hashes treated as 4). */
     val pinLength: Int = 0,
     val duressDigit: String = "",
     val duressPrefix: Boolean = false,

@@ -1,10 +1,5 @@
 package com.grandsphere.overwatch.domain.catalog
 
-/**
- * Add a future Dismiss Mode method:
- * 1. Implement [DismissEffect]
- * 2. Append to [DismissCatalog.all]
- */
 interface DismissEffect {
     val id: String
     val label: String
@@ -48,7 +43,6 @@ object DismissCatalog {
     fun usesTurnover(ids: Collection<String>): Boolean = "turnover" in ids
     fun usesShake(ids: Collection<String>): Boolean = "shake" in ids
 
-    /** Prefer auto when both present. */
     fun collapseFingerprint(ids: List<String>): List<String> {
         if (!usesFingerprint(ids)) return ids
         val rest = ids.filter { it != "fingerprint" && it != "auto_fingerprint" }

@@ -37,10 +37,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -55,9 +57,12 @@ import com.grandsphere.overwatch.ui.about.AboutScreen
 import com.grandsphere.overwatch.ui.chrome.AppDrawer
 import com.grandsphere.overwatch.ui.help.HelpScreen
 import com.grandsphere.overwatch.ui.chrome.OverwatchTopBar
+import com.grandsphere.overwatch.ui.chrome.TopBarTextAction
 import com.grandsphere.overwatch.ui.detail.DetailScreen
 import com.grandsphere.overwatch.ui.editor.EditorScreen
 import com.grandsphere.overwatch.ui.home.IdleHomeScreen
+import com.grandsphere.overwatch.ui.import.ImportOverwatchesDialog
+import com.grandsphere.overwatch.data.OverwatchExchange
 import com.grandsphere.overwatch.ui.running.RunningScreen
 import com.grandsphere.overwatch.ui.settings.SettingsScreen
 import com.grandsphere.overwatch.ui.theme.OverwatchTheme
@@ -87,23 +92,38 @@ fun OverwatchRoot(vm: MainViewModel) {
     val running = appState as? AppState.Overwatch
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) vm.importDb(context, uri)
+        if (uri != null) vm.importExchange(context, uri)
     }
-    val createDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+    val createDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) vm.writeExportTo(context, uri)
-    }
-    val importSettingsLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) vm.importSettings(context, uri)
     }
     val createSettingsDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) vm.writeSettingsExportTo(context, uri)
     }
-    val createVerboseDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+    val createVerboseDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) vm.writeVerboseLogTo(context, uri)
     }
-    val createLogDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+    val createLogDoc = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) vm.writeLogTo(context, uri)
     }
+    val overwatchImportLines by vm.overwatchImportLines.collectAsState()
+    val overwatchImportError by vm.overwatchImportError.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                val activity = context as? com.grandsphere.overwatch.MainActivity
+                val intent = activity?.intent
+                if (intent?.action == Intent.ACTION_SEND) {
+                    vm.handleIncomingShare(context, intent)
+                    activity.intent = Intent(context, com.grandsphere.overwatch.MainActivity::class.java)
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    var settingsSaveAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var pendingStart by remember { mutableStateOf<(() -> Unit)?>(null) }
     var pendingAfterLocation by remember { mutableStateOf<(() -> Unit)?>(null) }
     var showLocationOff by remember { mutableStateOf(false) }
@@ -321,6 +341,15 @@ fun OverwatchRoot(vm: MainViewModel) {
                                 }
                             }
                         },
+                        actions = {
+                            if (nav is Nav.Settings) {
+                                TopBarTextAction(
+                                    label = "Save",
+                                    onClick = { settingsSaveAction?.invoke() },
+                                    modifier = Modifier.padding(end = 4.dp),
+                                )
+                            }
+                        },
                     )
                 },
                 floatingActionButton = {
@@ -341,6 +370,8 @@ fun OverwatchRoot(vm: MainViewModel) {
                         Nav.Home -> IdleHomeScreen(
                             configs = configs,
                             onOpen = { vm.openDetail(it) },
+                            onShare = { vm.shareOverwatch(context, it) },
+                            onDuplicate = { vm.duplicateConfig(it) },
                             onDelete = { vm.deleteConfig(it) },
                         )
                         is Nav.Detail -> {
@@ -383,21 +414,21 @@ fun OverwatchRoot(vm: MainViewModel) {
                                     },
                                 )
                             },
-                            onExport = { createDoc.launch("overwatch-export.db") },
-                            onShare = { vm.exportDb(context) },
-                            onShareLog = { vm.shareLog(context) },
-                            onExportLog = { createLogDoc.launch("overwatch-log.txt") },
-                            onExportVerboseLog = {
-                                createVerboseDoc.launch("overwatch-verbose.log")
-                            },
-                            onShareVerboseLog = { vm.shareVerboseLog(context) },
-                            onImport = { importLauncher.launch(arrayOf("*/*")) },
+                            onExportOverwatches = { createDoc.launch(OverwatchExchange.FILE_OVERWATCHES) },
+                            onShareOverwatches = { vm.shareOverwatchesExport(context) },
                             onExportSettings = {
                                 createSettingsDoc.launch(SettingsExport.FILE_NAME)
                             },
                             onShareSettings = { vm.shareSettings(context) },
-                            onImportSettings = { importSettingsLauncher.launch(arrayOf("*/*")) },
+                            onExportLog = { createLogDoc.launch("overwatch-log.json") },
+                            onShareLog = { vm.shareLog(context) },
+                            onExportVerboseLog = {
+                                createVerboseDoc.launch("overwatch-verbose-log.json")
+                            },
+                            onShareVerboseLog = { vm.shareVerboseLog(context) },
+                            onImport = { importLauncher.launch(arrayOf("application/json", "text/plain")) },
                             onClearOverwatches = { vm.clearOverwatches() },
+                            registerSaveAction = { settingsSaveAction = it },
                         )
                         Nav.About -> AboutScreen()
                         Nav.Help -> HelpScreen()
@@ -405,6 +436,15 @@ fun OverwatchRoot(vm: MainViewModel) {
                 }
             }
         }
+        }
+        overwatchImportLines?.let { lines ->
+            ImportOverwatchesDialog(
+                lines = lines,
+                error = overwatchImportError,
+                onLineChange = vm::updateOverwatchImportLine,
+                onConfirm = { vm.confirmOverwatchImport(context) },
+                onDismiss = vm::dismissOverwatchImport,
+            )
         }
         if (showLocationOff) {
             AlertDialog(

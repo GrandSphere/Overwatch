@@ -19,10 +19,6 @@ import com.grandsphere.overwatch.R
 import com.grandsphere.overwatch.domain.model.AppState
 import com.grandsphere.overwatch.domain.model.Submode
 
-/**
- * Collapsed check-in bubble for a running Overwatch. Never auto-expands.
- * Stays until the user trashes it, then respawns after min(60s, interval/3).
- */
 object CheckInBubbles {
     const val ACTION_TRASHED = "com.grandsphere.overwatch.ACTION_BUBBLE_TRASHED"
     const val ID = 49

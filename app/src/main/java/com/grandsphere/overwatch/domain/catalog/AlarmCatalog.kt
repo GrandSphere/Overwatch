@@ -3,11 +3,6 @@ package com.grandsphere.overwatch.domain.catalog
 import android.content.Context
 import com.grandsphere.overwatch.domain.model.OverwatchConfig
 
-/**
- * Add a future Alarm Mode action:
- * 1. Implement [AlarmEffect]
- * 2. Append to [AlarmCatalog.all]
- */
 interface AlarmEffect {
     val id: String
     val label: String
@@ -33,7 +28,6 @@ object AlarmCatalog {
         QuitAlarm,
     )
 
-    /** Safety Mode: subset without quiet call, external alarm, record. */
     val safety: List<AlarmEffect> = listOf(
         NoneSafety,
         LogAlarm,
@@ -55,7 +49,6 @@ object AlarmCatalog {
 
     fun labelOf(id: String): String = byId(id)?.label ?: "unknown ($id)"
 
-    /** IDs shown as editor/preview chips; quiet_call is a Call-dialog toggle only. */
     fun chipIds(ids: List<String>): List<String> = ids.filter { it != "quiet_call" }
 
     fun menuOptions(list: List<AlarmEffect>): List<Pair<String, String>> =
@@ -77,7 +70,6 @@ object AlarmCatalog {
         return bad
     }
 
-    /** Drop removed ids; promote flicker/sos to flashlight. */
     fun sanitizeAlarmIds(ids: List<String>): List<String> {
         val next = ids.toMutableList()
         next.removeAll { it == "go_silent" || it == "continuous_location" }

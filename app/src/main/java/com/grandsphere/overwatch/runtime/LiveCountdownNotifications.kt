@@ -15,10 +15,6 @@ import com.grandsphere.overwatch.R
 import com.grandsphere.overwatch.domain.model.AppState
 import com.grandsphere.overwatch.domain.model.Submode
 
-/**
- * Grace countdown shade item only. Notify countdown lives on the FGS notification
- * when [live_notify] is selected (see OverwatchNotifications).
- */
 object LiveCountdownNotifications {
     const val CHANNEL = "overwatch_live"
     const val CHANNEL_QUIET = "overwatch_live_quiet"

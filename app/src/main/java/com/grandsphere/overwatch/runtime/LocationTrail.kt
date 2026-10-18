@@ -32,9 +32,6 @@ data class TrailPoint(
     val provider: String = "",
 )
 
-/**
- * Keeps high-accuracy fused location updates registered while location Alarm is active.
- */
 object LocationTrail {
     private const val INTERVAL_MS = 3_000L
     private const val MIN_INTERVAL_MS = 2_000L

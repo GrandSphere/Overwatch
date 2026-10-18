@@ -91,7 +91,7 @@ object ContinuousLocationScheduler {
                 }
                 if (!fresh) {
                     // GPS did not deliver a new fix (device locked / hardware throttled).
-                    // Do not send stale cached coordinates — log and wait for the next tick.
+                    // Do not send stale cached coordinates; log and wait for the next tick.
                     VerboseLog.fail("Location", "continuous skip: no new fix (locked/throttled)")
                     if (current.writeLog) {
                         EventLog.append(

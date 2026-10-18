@@ -2379,7 +2379,6 @@ private fun locationFooterLabel(recent: Boolean, continuous: Boolean): String = 
 
 private fun formatCrashG(g: Float): String = "${formatCrashGInput(g)}g"
 
-/** Always use `.` as decimal separator so chip parsing matches `toFloatOrNull()`. */
 private fun formatCrashGInput(g: Float): String =
     if (g == g.toLong().toFloat()) {
         g.toLong().toString()

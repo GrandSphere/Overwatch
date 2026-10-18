@@ -86,7 +86,7 @@ class AlarmDispatcher(
     }
 
     fun dispatchSafety(config: OverwatchConfig, resetCaps: Boolean) {
-        // Safety is overt "I am safe" — do not strip effects for Covert.
+        // Safety is overt "I am safe"; do not strip effects for Covert.
         val ids = config.safetyEffectIds
             .filter { it != "none" && AlarmCatalog.isAllowedInSafety(it) }
             .toSet()
@@ -220,7 +220,7 @@ class AlarmDispatcher(
             VerboseLog.fail(ctx.logLabel, "location skipped needs sms or log")
         }
         if (!ctx.locationContinuous) LocationTrail.stop()
-        // Quit only when explicitly selected — after other actions have been started.
+        // Quit only when explicitly selected, after other actions have been started.
         if ("quit" in ids) {
             pendingQuitJob?.cancel()
             pendingQuitJob = scope.launch {
@@ -356,7 +356,6 @@ class AlarmDispatcher(
         private const val QUIT_DEFER_MS = 2_500L
         private const val CUSTOM_NOTIFY_ID = 47
 
-        /** Lasting Alarm/Safety effects that should be bounded by max duration. */
         fun needsDurationCap(ids: Collection<String>, continuousLocation: Boolean = false): Boolean {
             val set = ids.toSet()
             return "siren" in set ||

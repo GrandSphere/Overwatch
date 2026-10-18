@@ -121,27 +121,39 @@ This project was developed with assistance from AI coding tools. Review and test
 ## Getting Started
 ### Prerequisites
 
-    Android Studio (e.g., Koala or later)
     JDK 17
     Kotlin 2.0.21
     Gradle 8.11.1
-    Device/Emulator running Android 8.0 (API 26) or higher
 
 ### Build
 
-    Clone the repository:
+Clone and build from the command line:
+```bat
+git clone https://github.com/GrandSphere/Overwatch
+cd Overwatch
+scripts\gradlew.bat assembleDebug
+```
+or
+```bat
+scripts\gradlew.bat assembleRelease
+```
 
-    git clone https://github.com/GrandSphere/Overwatch
-    cd Overwatch
+Android Studio (optional):
+Open the repo root in Android Studio, let it sync Gradle, then Run on a device or emulator (API 26+). Studio uses the same Gradle wrapper and `local.properties`.
 
-    Open the project in Android Studio and sync Gradle to download dependencies.
 
-    Configure signing for release builds:
-        Create a keystore.jks file with android studio.
+Output Folders:
+- Debug: `compile\app\outputs\apk\debug\`
+- Release: `compile\app\outputs\apk\release\`
 
-    Build and run:
-        Select a device or emulator (API 26+).
-        Run via Android Studio
+Release signing:
+- Release builds expect `keystore.properties` at the project root as well as a keystore file. 
+- You may create a keystore in Android Studio (Build → Generate Signed App Bundle / APK) and add the paths into `keystore.properties`.
+
+Quick test on an emulator (optional):
+
+- **`scripts\debug-build.bat`** - compile, install, and launch .
+- **`scripts\debug.bat`** - install the existing debug APK and launch. 
 
 ## Dependencies
 
@@ -153,17 +165,6 @@ Key dependencies (see app/build.gradle.kts):
     Google Play services Location
     AndroidX Biometric
 
-## Contributing
-
-Contributions are welcome. To contribute:
-
-    Fork the repository.
-    Create a feature branch (git checkout -b feature/your-feature).
-    Commit changes (git commit -m "Add your feature").
-    Push to the branch (git push origin feature/your-feature).
-    Open a pull request.
-
-Follow Kotlin Coding Conventions and ensure compliance with the GPL-3.0 license.
 ## Known Issues
 
 Report issues at https://github.com/GrandSphere/Overwatch/issues.

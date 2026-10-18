@@ -21,10 +21,6 @@ import com.grandsphere.overwatch.domain.model.ShakeStrength
 import kotlin.math.abs
 import kotlin.math.sqrt
 
-/**
- * Power / turnover / shake / crash detectors while an Overwatch is running.
- * Calls [OverwatchEngine.onSensorTrigger] (panic path remains immediate).
- */
 class SensorTriggers(
     private val context: Context,
     private val engine: OverwatchEngine,

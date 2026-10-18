@@ -11,10 +11,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 
-/**
- * Debug trail in Documents/Overwatch/overwatch-verbose.log (same folder as the user alarm log).
- * Breadcrumbs only when [enabled]. Uncaught crashes are always written.
- */
 object VerboseLog {
     const val FILE_NAME = "overwatch-verbose.log"
     private const val TAG = "OverwatchVerbose"
@@ -84,6 +80,11 @@ object VerboseLog {
         val dest = File(context.cacheDir, FILE_NAME)
         src.copyTo(dest, overwrite = true)
         return dest
+    }
+
+    fun importText(context: Context, text: String) {
+        val body = if (text.endsWith("\n")) text else "$text\n"
+        DocumentsLog.writeNamed(context, FILE_NAME, body, maxBytes = MAX_BYTES)
     }
 
     private fun writeLine(

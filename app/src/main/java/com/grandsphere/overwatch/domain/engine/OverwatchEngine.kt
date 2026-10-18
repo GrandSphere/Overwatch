@@ -19,9 +19,7 @@ import kotlinx.coroutines.flow.update
 
 interface LoopCallbacks {
     fun onEnterOverwatch(config: OverwatchConfig)
-    /** Stop alarm/safety output (siren, calls, etc.) and dismiss clock alarm. */
     fun onHaltAlarmEffects()
-    /** Stop Notify Mode cues (sound, torch, clock). Do not halt Alarm/Safety. */
     fun onHaltNotifyCues()
     /** Cancel deadline scheduler; stop FGS unless [keepService] (Safety lasting effects). */
     fun onTeardownOverwatch(keepService: Boolean = false)
@@ -30,15 +28,11 @@ interface LoopCallbacks {
     fun onSafety(config: OverwatchConfig, resetCaps: Boolean)
     fun onAlarmCapSchedule(minutes: Int)
     fun onAlarmCapCancel()
-    /** Hard quit (max duration / Quit effect / drawer). */
     fun onHardQuit()
     fun onUserLog(config: OverwatchConfig, message: String)
 }
 
-/**
- * Single source of truth for Wading vs Overwatch and the four submodes.
- * UI and OverwatchService both observe [state].
- */
+/** Wading or an active run; submode and timers are in [state]. */
 class OverwatchEngine(
     private val callbacks: LoopCallbacks,
 ) {
@@ -156,7 +150,6 @@ class OverwatchEngine(
         return false
     }
 
-    /** Cancel pad: true if cancel succeeded or duress entered alarm (leave cancel UI). */
     fun cancelPinDigit(digit: Char, buffer: String): Pair<String, Boolean> {
         val running = _state.value as? AppState.Overwatch ?: return buffer to false
         val next = (buffer + digit).take(8)
@@ -190,10 +183,6 @@ class OverwatchEngine(
         onProofSuccess()
     }
 
-    /**
-     * Sensor trigger (power / turnover / shake / crash). Panic Mode wins, then dismiss, then cancel.
-     * Panic always uses the existing immediate [panic] chain.
-     */
     fun onSensorTrigger(effectId: String) {
         val running = _state.value as? AppState.Overwatch
         if (running != null) {
@@ -303,7 +292,6 @@ class OverwatchEngine(
         callbacks.onHardQuit()
     }
 
-    /** State only — teardown is owned by [LoopCallbacks.onHardQuit] / AppShutdown. */
     fun forceWadingHardQuit() {
         consecutiveWrongPins = 0
         VerboseLog.d("Engine", "forceWadingHardQuit")
